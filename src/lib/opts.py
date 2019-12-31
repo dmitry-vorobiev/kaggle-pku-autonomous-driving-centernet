@@ -312,6 +312,9 @@ class opts(object):
           {'wh': 2})
       if opt.reg_offset:
         opt.heads.update({'reg': 2})
+    elif opt.task == 'car_pose_6dof':
+      # TODO: setup heads
+      pass
     elif opt.task == 'ctdet':
       # assert opt.dataset in ['pascal', 'coco']
       opt.heads = {'hm': opt.num_classes,
