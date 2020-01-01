@@ -147,7 +147,9 @@ class opts(object):
     self.parser.add_argument('--kitti_split', default='3dop',
                              help='different validation split for kitti: '
                                   '3dop | subcnn')
-
+    # kaggle_cars
+    self.parser.add_argument('--whole_img', action='store_true', default=False,
+                             help='do not crop the image')
     # loss
     self.parser.add_argument('--mse_loss', action='store_true',
                              help='use mse loss or focal loss to train '
@@ -314,7 +316,7 @@ class opts(object):
         opt.heads.update({'reg': 2})
     elif opt.task == 'car_pose_6dof':
       # TODO: setup heads
-      pass
+      opt.img_bottom_half = not opt.whole_img
     elif opt.task == 'ctdet':
       # assert opt.dataset in ['pascal', 'coco']
       opt.heads = {'hm': opt.num_classes,

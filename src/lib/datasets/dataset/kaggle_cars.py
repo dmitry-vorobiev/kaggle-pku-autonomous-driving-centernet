@@ -7,9 +7,12 @@ import math
 import os
 import cv2
 import numpy as np
+import pandas as pd
 import torch
 import torch.utils.data as data
+from collections import OrderedDict
 
+from utils import car_models
 
 class KaggleCars(data.Dataset):
     num_classes = 1
@@ -23,8 +26,6 @@ class KaggleCars(data.Dataset):
         self.data_dir = os.path.join(opt.data_dir, 'pku-autonomous-driving')
         self.img_dir = os.path.join(self.data_dir, '%s_images' % split)
         self.max_objs = 50
-        # self.class_name = ['__background__', 'Car']
-
         self._data_rng = np.random.RandomState(123)
         self._eig_val = np.array([0.2141788, 0.01817699, 0.00341571],
                                  dtype=np.float32)
@@ -38,6 +39,7 @@ class KaggleCars(data.Dataset):
 
         print('==> initializing pku-autonomous-driving %s data.' % split)
         self.df = pd.read_csv(os.path.join(self.data_dir, 'train.csv'))
+        self.car_models = self.load_car_models()
         self.images = self.get_img_list(opt.trainval)
         self.num_samples = len(self.images)
 
@@ -67,3 +69,19 @@ class KaggleCars(data.Dataset):
         elif self.split == 'test':
             images = [x[:-4] for x in os.listdir(self.img_dir)]
         return images
+
+    def load_car_models(self):
+        """Load all the car models
+        """
+        car_models_all = OrderedDict([])
+        print('loading %d car models' % len(car_models.models))
+        for model in car_models.models:
+            car_model = os.path.join(self.data_dir, 'car_models_json', model.name+'.json')
+            with open(car_model) as json_file:
+                car = json.load(json_file)
+            for key in ['vertices', 'faces']:
+                car[key] = np.array(car[key])
+            # fix the inconsistency between obj and pkl
+            car['vertices'][:, [0, 1]] *= -1
+            car_models_all[model.name] = car 
+        return car_models_all
