@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 import torch.utils.data as data
 
-from utils.camera import create_camera_matrix, euler_angles_to_rotation_matrix
+from utils.camera import create_camera_matrix, euler_angles_to_rotation_matrix, euler_angles_to_quaternions
 from utils.car_models import car_id2name
 from utils.image import get_affine_transform, affine_transform
 from utils.image import gaussian_radius, draw_umich_gaussian, draw_msra_gaussian
@@ -55,6 +55,7 @@ class CarPose6DoFDataset(data.Dataset):
 
         hm = np.zeros((num_classes, out_h, out_w), dtype=np.float32)
         wh = np.zeros((self.max_objs, 2), dtype=np.float32)
+        rot = np.zeros((self.max_objs, 4), dtype=np.float32)
         reg = np.zeros((self.max_objs, 2), dtype=np.float32)
         dep = np.zeros((self.max_objs, 1), dtype=np.float32)
         ind = np.zeros((self.max_objs), dtype=np.int64)
@@ -88,16 +89,18 @@ class CarPose6DoFDataset(data.Dataset):
                 draw_gaussian(hm[0], ct, radius)
 
                 wh[k] = 1. * w, 1. * h
-                gt_det.append([ct[0], ct[1], 1] + ann['pose'].tolist() + [cls_id])
-                if self.opt.reg_bbox:
-                    gt_det[-1] = gt_det[-1][:-1] + [w, h] + [gt_det[-1][-1]]
-                dep[k] = ann['pose'][-1]
+                gt_det.append([ct[0], ct[1], 1, *ann['rotation'].tolist(), 
+                               *ann['location'].tolist(), cls_id])
+                # if self.opt.reg_bbox:
+                #     gt_det[-1] = gt_det[-1][:-1] + [w, h] + [gt_det[-1][-1]]
+                rot[k] = euler_angles_to_quaternions(ann['rotation'])
+                dep[k] = ann['location'][-1]
                 ind[k] = ct_int[1] * out_w + ct_int[0]
                 reg[k] = ct - ct_int
                 reg_mask[k] = 1 if not aug else 0
                 rot_mask[k] = 1
 
-        ret = {'input': inp, 'hm': hm, 'dep': dep, 'ind': ind, 
+        ret = {'input': inp, 'hm': hm, 'dep': dep, 'rot': rot, 'ind': ind, 
                'reg_mask': reg_mask, 'rot_mask': rot_mask}
         if self.opt.reg_bbox:
             ret.update({'wh': wh})
@@ -121,13 +124,13 @@ class CarPose6DoFDataset(data.Dataset):
         for i, ann in enumerate(anns):
             car_name = car_id2name[ann['car_id']].name
             car = self.car_models[car_name]
-            pose = np.array(ann['pose'])
             
             # project 3D points to 2d image plane
-            rot_mat = euler_angles_to_rotation_matrix(pose[:3])
+            rot_mat = euler_angles_to_rotation_matrix(ann['rotation'])
             rvect, _ = cv2.Rodrigues(rot_mat)
-            imgpts, jac = cv2.projectPoints(np.float32(car['vertices']), rvect, pose[3:], 
-                                            self.calib[:,:3], distCoeffs=None)
+            imgpts, jac = cv2.projectPoints(np.float32(car['vertices']), rvect, 
+                                            ann['location'], self.calib[:,:3], 
+                                            distCoeffs=None)
             imgpts = np.int32(imgpts).reshape(-1, 2)
             
             x1, y1, x2, y2 = (imgpts[:, 0].min(), imgpts[:, 1].min(), 

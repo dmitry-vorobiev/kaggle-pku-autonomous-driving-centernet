@@ -36,3 +36,58 @@ def euler_angles_to_rotation_matrix(angle, is_dir=False):
     if is_dir:
         R = R[:, 2]
     return R
+
+
+def euler_angles_to_quaternions(angle):
+    """Convert euler angels to quaternions representation.
+    Input:
+        angle: n x 3 matrix, each row is [roll, pitch, yaw]
+    Output:
+        q: n x 4 matrix, each row is corresponding quaternion.
+    """
+
+    in_dim = np.ndim(angle)
+    if in_dim == 1:
+        angle = angle[None, :]
+
+    n = angle.shape[0]
+    roll, pitch, yaw = -angle[:, 1], -angle[:, 0], -angle[:, 2]
+    q = np.zeros((n, 4))
+
+    cy = np.cos(yaw * 0.5)
+    sy = np.sin(yaw * 0.5)
+    cr = np.cos(roll * 0.5)
+    sr = np.sin(roll * 0.5)
+    cp = np.cos(pitch * 0.5)
+    sp = np.sin(pitch * 0.5)
+
+    q[:, 0] = cy * cr * cp + sy * sr * sp
+    q[:, 1] = cy * sr * cp - sy * cr * sp
+    q[:, 2] = cy * cr * sp + sy * sr * cp
+    q[:, 3] = sy * cr * cp - cy * sr * sp
+
+    return q
+
+
+def quaternion_to_euler_angle(q):
+    """Convert quaternion to euler angel.
+    Input:
+        q: 1 * 4 vector,
+    Output:
+        angle: 1 x 3 vector, each row is [roll, pitch, yaw]
+    """
+    w, x, y, z = q
+    t0 = +2.0 * (w * x + y * z)
+    t1 = +1.0 - 2.0 * (x * x + y * y)
+    X = math.atan2(t0, t1)
+
+    t2 = +2.0 * (w * y - z * x)
+    t2 = +1.0 if t2 > +1.0 else t2
+    t2 = -1.0 if t2 < -1.0 else t2
+    Y = math.asin(t2)
+
+    t3 = +2.0 * (w * z + x * y)
+    t4 = +1.0 - 2.0 * (y * y + z * z)
+    Z = math.atan2(t3, t4)
+
+    return -Y, -X, -Z

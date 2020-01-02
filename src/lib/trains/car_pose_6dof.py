@@ -44,11 +44,8 @@ class CarPose6DoFLoss(torch.nn.Module):
                 dep_loss += self.crit_reg(output['dep'], batch['reg_mask'],
                                           batch['ind'], batch['dep']) / opt.num_stacks
             if opt.rot_weight > 0:
-                # TODO: another rotation loss
-                # rot_loss += self.crit_rot(output['rot'], batch['rot_mask'],
-                #                           batch['ind'], batch['rotbin'],
-                #                           batch['rotres']) / opt.num_stacks
-                rot_loss = torch.zeros_like(hm_loss)
+                rot_loss += self.crit_reg(output['rot'], batch['rot_mask'],
+                                          batch['ind'], batch['rot']) / opt.num_stacks
             if opt.reg_bbox and opt.wh_weight > 0:
                 wh_loss += self.crit_reg(output['wh'], batch['rot_mask'],
                                          batch['ind'], batch['wh']) / opt.num_stacks
