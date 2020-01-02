@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 import torch.utils.data as data
 
-from utils.camera import euler_angles_to_rotation_matrix
+from utils.camera import create_camera_matrix, euler_angles_to_rotation_matrix
 from utils.car_models import car_id2name
 from utils.image import get_affine_transform, affine_transform
 from utils.image import gaussian_radius, draw_umich_gaussian, draw_msra_gaussian
@@ -17,7 +17,6 @@ from utils.kaggle_cars_utils import parse_annot_str
 class CarPose6DoFDataset(data.Dataset):
     def __getitem__(self, index):
         calib = self.calib
-
         img_id = self.images[index]
         img_path = os.path.join(self.img_dir, img_id+'.jpg')
         img = cv2.imread(img_path)
@@ -32,6 +31,16 @@ class CarPose6DoFDataset(data.Dataset):
             s = np.array(input_shape, dtype=np.int32)
         else:
             s = np.array([width, height], dtype=np.int32)
+
+        aug = False
+        if False and self.split == 'train' and np.random.random() < self.opt.aug_ddd:
+            aug = True
+            sf = self.opt.scale
+            cf = self.opt.shift
+            s = s * np.clip(np.random.randn()*sf + 1, 1 - sf, 1 + sf)
+            c[0] += img.shape[1] * np.clip(np.random.randn()*cf, -2*cf, 2*cf)
+            c[1] += img.shape[0] * np.clip(np.random.randn()*cf, -2*cf, 2*cf)
+
         trans_input = get_affine_transform(c, s, 0, input_shape)
         inp = cv2.warpAffine(img, trans_input, input_shape, flags=cv2.INTER_LINEAR)
         inp = (inp.astype(np.float32) / 255.)
@@ -45,6 +54,12 @@ class CarPose6DoFDataset(data.Dataset):
         trans_output = get_affine_transform(c, s, 0, [out_w, out_h])
 
         hm = np.zeros((num_classes, out_h, out_w), dtype=np.float32)
+        wh = np.zeros((self.max_objs, 2), dtype=np.float32)
+        reg = np.zeros((self.max_objs, 2), dtype=np.float32)
+        dep = np.zeros((self.max_objs, 1), dtype=np.float32)
+        ind = np.zeros((self.max_objs), dtype=np.int64)
+        reg_mask = np.zeros((self.max_objs), dtype=np.uint8)
+        rot_mask = np.zeros((self.max_objs), dtype=np.uint8)
 
         anns = self.find_car_poses(img_id)
         bboxes = self.calc_2D_boxes(anns, [width, height])
@@ -55,6 +70,7 @@ class CarPose6DoFDataset(data.Dataset):
         gt_det = []
         for k in range(num_objs):
             ann = anns[k]
+            cls_id = ann['car_id']
             bbox = np.array(bboxes[k])
             # if flipped:
             #   bbox[[0, 2]] = width - bbox[[2, 0]] - 1
@@ -66,16 +82,27 @@ class CarPose6DoFDataset(data.Dataset):
             if h > 0 and w > 0:
                 radius = gaussian_radius((h, w))
                 radius = max(0, int(radius))
-                ct = np.array(
-                [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2], dtype=np.float32)
+                ct = np.array([(bbox[0] + bbox[2]) / 2, 
+                               (bbox[1] + bbox[3]) / 2], dtype=np.float32)
                 ct_int = ct.astype(np.int32)
                 draw_gaussian(hm[0], ct, radius)
 
-        ret = {'input': inp, 'hm': hm}
-        # if self.opt.reg_bbox:
-        #     ret.update({'wh': wh})
-        # if self.opt.reg_offset:
-        #     ret.update({'reg': reg})
+                wh[k] = 1. * w, 1. * h
+                gt_det.append([ct[0], ct[1], 1] + ann['pose'].tolist() + [cls_id])
+                if self.opt.reg_bbox:
+                    gt_det[-1] = gt_det[-1][:-1] + [w, h] + [gt_det[-1][-1]]
+                dep[k] = ann['pose'][-1]
+                ind[k] = ct_int[1] * out_w + ct_int[0]
+                reg[k] = ct - ct_int
+                reg_mask[k] = 1 if not aug else 0
+                rot_mask[k] = 1
+
+        ret = {'input': inp, 'hm': hm, 'dep': dep, 'ind': ind, 
+               'reg_mask': reg_mask, 'rot_mask': rot_mask}
+        if self.opt.reg_bbox:
+            ret.update({'wh': wh})
+        if self.opt.reg_offset:
+            ret.update({'reg': reg})
         if self.opt.debug > 0 or not ('train' in self.split):
             gt_det = np.array(gt_det, dtype=np.float32) if len(gt_det) > 0 else \
                     np.zeros((1, 18), dtype=np.float32)
@@ -90,7 +117,6 @@ class CarPose6DoFDataset(data.Dataset):
 
     def calc_2D_boxes(self, anns, image_shape):
         """Calc 2D bboxes using CAD models"""
-        # initiate the lists
         boxes = []
         for i, ann in enumerate(anns):
             car_name = car_id2name[ann['car_id']].name
@@ -107,8 +133,8 @@ class CarPose6DoFDataset(data.Dataset):
             x1, y1, x2, y2 = (imgpts[:, 0].min(), imgpts[:, 1].min(), 
                               imgpts[:, 0].max(), imgpts[:, 1].max())
             if self.opt.img_bottom_half:
-                half_h = int(image_shape[1])
-                y1 -= half_h
-                y2 -= half_h
+                halved_h = int(image_shape[1])
+                y1 -= halved_h
+                y2 -= halved_h
             boxes.append([x1, y1, x2, y2])
         return boxes

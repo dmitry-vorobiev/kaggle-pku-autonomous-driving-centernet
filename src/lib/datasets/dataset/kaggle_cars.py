@@ -13,6 +13,7 @@ import torch.utils.data as data
 from collections import OrderedDict
 
 from utils import car_models
+from utils.camera import create_camera_matrix
 
 class KaggleCars(data.Dataset):
     num_classes = 1
@@ -25,6 +26,7 @@ class KaggleCars(data.Dataset):
         super(KaggleCars, self).__init__()
         self.data_dir = os.path.join(opt.data_dir, 'pku-autonomous-driving')
         self.img_dir = os.path.join(self.data_dir, '%s_images' % split)
+        self.calib = create_camera_matrix()
         self.max_objs = 50
         self._data_rng = np.random.RandomState(123)
         self._eig_val = np.array([0.2141788, 0.01817699, 0.00341571],

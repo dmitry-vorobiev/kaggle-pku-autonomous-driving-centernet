@@ -147,7 +147,7 @@ class opts(object):
     self.parser.add_argument('--kitti_split', default='3dop',
                              help='different validation split for kitti: '
                                   '3dop | subcnn')
-    # kaggle_cars
+    # car_pose_6dof
     self.parser.add_argument('--whole_img', action='store_true', default=False,
                              help='do not crop the image')
     # loss
@@ -244,6 +244,7 @@ class opts(object):
     opt.reg_bbox = not opt.not_reg_bbox
     opt.hm_hp = not opt.not_hm_hp
     opt.reg_hp_offset = (not opt.not_reg_hp_offset) and opt.hm_hp
+    opt.img_bottom_half = not opt.whole_img
 
     if opt.head_conv == -1: # init default head_conv
       opt.head_conv = 256 if 'dla' in opt.arch else 64
@@ -310,13 +311,15 @@ class opts(object):
       # assert opt.dataset in ['gta', 'kitti', 'viper']
       opt.heads = {'hm': opt.num_classes, 'dep': 1, 'rot': 8, 'dim': 3}
       if opt.reg_bbox:
-        opt.heads.update(
-          {'wh': 2})
+        opt.heads.update({'wh': 2})
       if opt.reg_offset:
         opt.heads.update({'reg': 2})
     elif opt.task == 'car_pose_6dof':
-      # TODO: setup heads
-      opt.img_bottom_half = not opt.whole_img
+      opt.heads = {'hm': opt.num_classes, 'dep': 1, 'rot': 4}
+      if opt.reg_bbox:
+        opt.heads.update({'wh': 2})
+      if opt.reg_offset:
+        opt.heads.update({'reg': 2})
     elif opt.task == 'ctdet':
       # assert opt.dataset in ['pascal', 'coco']
       opt.heads = {'hm': opt.num_classes,
