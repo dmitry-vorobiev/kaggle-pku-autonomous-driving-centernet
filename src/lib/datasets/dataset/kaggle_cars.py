@@ -25,7 +25,7 @@ class KaggleCars(data.Dataset):
     def __init__(self, opt, split):
         super(KaggleCars, self).__init__()
         self.data_dir = os.path.join(opt.data_dir, 'pku-autonomous-driving')
-        self.img_dir = os.path.join(self.data_dir, '%s_images' % split)
+        self.img_dir = os.path.join(self.data_dir, KaggleCars._img_dir_name(split))
         self.calib = create_camera_matrix()
         self.max_objs = 50
         self._data_rng = np.random.RandomState(123)
@@ -48,26 +48,37 @@ class KaggleCars(data.Dataset):
     def __len__(self):
         return self.num_samples
 
+    @staticmethod
+    def _img_dir_name(split):
+        dir_name = 'test_images' if split == 'test' else 'train_images'
+        return dir_name
+
+    def _read_split_file(self, split):
+        path = os.path.join(self.data_dir, 'split', split+'.txt')
+        with open(path) as f:
+            return [line.rstrip('\n')[:-4] for line in f]
+
     def get_img_list(self, with_valid=False):
         """
         Get the image list,
-        :param list_flag: ['train', 'val', test']
         :param with_valid:  if with_valid set to True, then validation data is also used for training
         :return:
         """
         images = []
         if self.split == 'train':
-            train_list_all = [line.rstrip('\n')[:-4] for line in open(os.path.join(self.data_dir, 'split', self.split + '.txt'))]
-
-            if with_valid:
-                valid_list_all = [line.rstrip('\n')[:-4] for line in open(os.path.join(self.data_dir, 'split', 'val.txt'))]
-                val_list_delete = []
-                train_list_all += [x for x in valid_list_all if x not in val_list_delete]   
-                print("Val delete %d images." % len(val_list_delete))
-                
+            train_list_all = self._read_split_file(self.split)
             train_list_delete = []
+            if with_valid:
+                valid_list_all = self._read_split_file('val')
+                train_list_all += valid_list_all
+                # train_list_delete += []
             images = [x for x in train_list_all if x not in train_list_delete]
-            print("Train delete %d images" % len(train_list_delete))
+            print("Loaded %d train images, skipped: %d" % (len(images), len(train_list_delete)))
+        elif self.split == 'val':
+            valid_list_all = self._read_split_file(self.split)
+            val_list_delete = []
+            images = [x for x in valid_list_all if x not in val_list_delete]
+            print("Loaded %d val images, skipped: %d" % (len(images), len(val_list_delete)))
         elif self.split == 'test':
             images = [x[:-4] for x in os.listdir(self.img_dir)]
         return images
@@ -87,3 +98,21 @@ class KaggleCars(data.Dataset):
             car['vertices'][:, [0, 1]] *= -1
             car_models_all[model.name] = car 
         return car_models_all
+
+    def save_results(self, results, save_dir):
+        results_dir = os.path.join(save_dir, 'results')
+        if not os.path.exists(results_dir):
+            os.mkdir(results_dir)
+        for img_id in results.keys():
+            out_path = os.path.join(results_dir, img_id+'.txt')
+            with open(out_path, 'w') as f:
+                for cls_ind in results[img_id]:
+                    for j in range(len(results[img_id][cls_ind])):
+                        class_name = car_models.car_id2name[cls_ind].name
+                        f.write('%s |' % class_name)
+                        for i in range(len(results[img_id][cls_ind][j])):
+                            f.write(' {:.2f}'.format(results[img_id][cls_ind][j][i]))
+                        f.write('\n')
+
+    def run_eval(self, results, save_dir):
+        self.save_results(results, save_dir)

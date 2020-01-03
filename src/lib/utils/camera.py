@@ -72,7 +72,7 @@ def euler_angles_to_quaternions(angle):
 def quaternion_to_euler_angle(q):
     """Convert quaternion to euler angel.
     Input:
-        q: 1 * 4 vector,
+        q: 1 x 4 vector,
     Output:
         angle: 1 x 3 vector, each row is [roll, pitch, yaw]
     """
@@ -90,4 +90,4 @@ def quaternion_to_euler_angle(q):
     t4 = +1.0 - 2.0 * (y * y + z * z)
     Z = math.atan2(t3, t4)
 
-    return -Y, -X, -Z
+    return np.array([-Y, -X, -Z], dtype=np.float32)
