@@ -106,16 +106,15 @@ def car_6dof_post_process(dets, c, s, calibs, opt):
                  for center, depth in zip(centers, depths)])
             rot_eulers = np.vstack(
                 [quaternion_to_euler_angle(q) for q in quaternions])
-            top_preds[j + 1] = np.concatenate([
-                rot_eulers.astype(np.float32),
-                locations.astype(np.float32),
-                scores.astype(np.float32)], axis=1)
+            preds = [rot_eulers.astype(np.float32),
+                     locations.astype(np.float32)]
             if include_wh:
-                top_preds[j + 1] = np.concatenate([
-                    top_preds[j + 1],
-                    transform_preds(
-                        dets[i, inds, 8:10], c[i], s[i], (opt.output_w, opt.output_h))
-                    .astype(np.float32)], axis=1)
+                wh = transform_preds(
+                    dets[i, inds, 8:10], c[i], s[i],
+                    (opt.output_w, opt.output_h))
+                preds.append(wh.astype(np.float32))
+            preds.append(scores.astype(np.float32))
+            top_preds[j + 1] = np.concatenate(preds, axis=1)
         ret.append(top_preds)
     return ret
 

@@ -10,11 +10,12 @@ def create_camera_matrix():
     ], dtype=np.float32)
 
 
-def euler_angles_to_rotation_matrix(angle, is_dir=False):
+def euler_angles_to_rotation_matrix(angle):
     """Convert euler angels to quaternions.
     Input:
         angle: [roll, pitch, yaw]
-        is_dir: whether just use the 2d direction on a map
+    Output:
+        R: 3 x 3 matrix
     """
     yaw, pitch, roll = -angle[0], -angle[1], -angle[2]
     Rx = np.array([
@@ -33,8 +34,6 @@ def euler_angles_to_rotation_matrix(angle, is_dir=False):
         [0, 0, 1]
     ])
     R = Ry @ Rx @ Rz
-    if is_dir:
-        R = R[:, 2]
     return R
 
 
