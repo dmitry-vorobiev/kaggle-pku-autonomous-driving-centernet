@@ -83,8 +83,11 @@ class CarPose6DoFDataset(data.Dataset):
             if h > 0 and w > 0:
                 radius = gaussian_radius((h, w))
                 radius = max(0, int(radius))
-                ct = np.array([(bbox[0] + bbox[2]) / 2, 
-                               (bbox[1] + bbox[3]) / 2], dtype=np.float32)
+                ct = calib[:,:3] @ ann['location']
+                ct = ct[:2] / ct[2]
+                if self.opt.img_bottom_half:
+                    ct[1] -= height
+                ct = affine_transform(ct, trans_output)
                 ct_int = ct.astype(np.int32)
                 draw_gaussian(hm[0], ct, radius)
 
