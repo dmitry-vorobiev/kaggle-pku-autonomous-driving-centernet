@@ -74,8 +74,36 @@ class CarPose6DoFTrainer(BaseTrainer):
         return loss_states, loss
 
     def debug(self, batch, output, iter_id):
-        # TODO: some debug
-        pass
+        opt = self.opt
+        wh = output['wh'] if opt.reg_bbox else None
+        reg = output['reg'] if opt.reg_offset else None
+        dets = car_pose_6dof_decode(
+            output['hm'], output['rot'], output['dep'],
+            wh=wh, reg=reg, K=opt.K)
+        # x, y, score, r1-r4, depth, wh?, cls
+        dets = dets.detach().cpu().numpy().reshape(1, -1, dets.shape[2])
+        calib = batch['meta']['calib'].detach().numpy()
+        # x, y, z, yaw, pitch, roll, score
+        dets_pred = car_6dof_post_process(
+            dets.copy(), batch['meta']['c'].detach().numpy(),
+            batch['meta']['s'].detach().numpy(), calib, opt)
+        dets_gt = car_6dof_post_process(
+            batch['meta']['gt_det'].detach().numpy().copy(),
+            batch['meta']['c'].detach().numpy(), 
+            batch['meta']['s'].detach().numpy(), calib, opt)
+        for i in range(1):
+            debugger = Debugger(dataset=opt.dataset, ipynb=(opt.debug==3),
+                                theme=opt.debugger_theme)
+            img = batch['input'][i].detach().cpu().numpy().transpose(1, 2, 0)
+            img = ((img * self.opt.std + self.opt.mean) * 255.).astype(np.uint8)
+            pred = debugger.gen_colormap(output['hm'][i].detach().cpu().numpy())
+            gt = debugger.gen_colormap(batch['hm'][i].detach().cpu().numpy())
+            debugger.add_blend_img(img, pred, 'hm_pred')
+            debugger.add_blend_img(img, gt, 'hm_gt')
+            if opt.debug ==4:
+                debugger.save_all_imgs(opt.debug_dir, prefix='{}'.format(iter_id))
+            else:
+                debugger.show_all_imgs(pause=True)
 
     def save_result(self, output, batch, results):
         opt = self.opt

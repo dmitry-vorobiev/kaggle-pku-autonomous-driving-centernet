@@ -71,7 +71,7 @@ class CarPose6DoFDataset(data.Dataset):
         gt_det = []
         for k in range(num_objs):
             ann = anns[k]
-            cls_id = ann['car_id']
+            cls_id = 0 # ann['car_id']
             bbox = np.array(bboxes[k])
             # if flipped:
             #   bbox[[0, 2]] = width - bbox[[2, 0]] - 1
@@ -91,16 +91,16 @@ class CarPose6DoFDataset(data.Dataset):
                 draw_gaussian(hm[0], ct, radius)
 
                 wh[k] = 1. * w, 1. * h
-                gt_det.append([ct[0], ct[1], 1, *ann['rotation'].tolist(), 
-                               *ann['location'].tolist(), cls_id])
-                # if self.opt.reg_bbox:
-                #     gt_det[-1] = gt_det[-1][:-1] + [w, h] + [gt_det[-1][-1]]
                 rot[k] = euler_angles_to_quaternions(ann['rotation'])
                 dep[k] = ann['location'][-1]
                 ind[k] = ct_int[1] * out_w + ct_int[0]
                 reg[k] = ct - ct_int
                 reg_mask[k] = 1 if not aug else 0
                 rot_mask[k] = 1
+                # x, y, score, r1-r4, depth, wh?, cls
+                gt_det.append([ct[0], ct[1], 1, *rot[k].tolist(), dep[k], cls_id])
+                if self.opt.reg_bbox:
+                    gt_det[-1] = gt_det[-1][:-1] + [w, h] + [gt_det[-1][-1]]
 
         ret = {'input': inp, 'hm': hm, 'dep': dep, 'rot': rot, 'ind': ind, 
                'reg_mask': reg_mask, 'rot_mask': rot_mask}
@@ -110,7 +110,7 @@ class CarPose6DoFDataset(data.Dataset):
             ret.update({'reg': reg})
         if self.opt.debug > 0 or not ('train' in self.split):
             gt_det = np.array(gt_det, dtype=np.float32) if len(gt_det) > 0 else \
-                    np.zeros((1, 18), dtype=np.float32)
+                    np.zeros((1, 11), dtype=np.float32)
             meta = {'c': c, 's': s, 'gt_det': gt_det, 'calib': calib,
                     'image_path': img_path, 'img_id': img_id}
             ret['meta'] = meta

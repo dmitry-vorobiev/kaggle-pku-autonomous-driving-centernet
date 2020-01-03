@@ -62,6 +62,8 @@ class Debugger(object):
       self.focal_length = 721.5377
       self.W = 1242
       self.H = 375
+    elif dataset == 'kaggle_cars':
+      self.names = ['v']
     num_classes = len(self.names)
     self.down_ratio=down_ratio
     # for bird view
