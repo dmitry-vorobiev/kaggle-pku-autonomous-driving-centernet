@@ -9,6 +9,10 @@ def create_camera_matrix():
         [0, 0, 1., 0]
     ], dtype=np.float32)
 
+def project_point(p, calib):
+    p = np.dot(calib[:,:3], p)
+    p = p[:2] / p[2]
+    return p
 
 def euler_angles_to_rotation_matrix(angle):
     """Convert euler angels to quaternions.

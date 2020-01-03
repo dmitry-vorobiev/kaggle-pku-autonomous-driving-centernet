@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 import torch.utils.data as data
 
-from utils.camera import create_camera_matrix, euler_angles_to_rotation_matrix, euler_angles_to_quaternions
+from utils.camera import create_camera_matrix, euler_angles_to_rotation_matrix, euler_angles_to_quaternions, project_point
 from utils.car_models import car_id2name
 from utils.image import get_affine_transform, affine_transform
 from utils.image import gaussian_radius, draw_umich_gaussian, draw_msra_gaussian
@@ -83,8 +83,7 @@ class CarPose6DoFDataset(data.Dataset):
             if h > 0 and w > 0:
                 radius = gaussian_radius((h, w))
                 radius = max(0, int(radius))
-                ct = calib[:,:3] @ ann['location']
-                ct = ct[:2] / ct[2]
+                ct = project_point(ann['location'], calib)
                 if self.opt.img_bottom_half:
                     ct[1] -= height
                 ct = affine_transform(ct, trans_output)
