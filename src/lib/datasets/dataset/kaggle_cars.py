@@ -65,22 +65,17 @@ class KaggleCars(data.Dataset):
         :return:
         """
         images = []
-        if self.split == 'train':
-            train_list_all = self._read_split_file(self.split)
-            train_list_delete = []
-            if with_valid:
-                valid_list_all = self._read_split_file('val')
-                train_list_all += valid_list_all
-                # train_list_delete += []
-            images = [x for x in train_list_all if x not in train_list_delete]
-            print("Loaded %d train images, skipped: %d" % (len(images), len(train_list_delete)))
-        elif self.split == 'val':
-            valid_list_all = self._read_split_file(self.split)
-            val_list_delete = []
-            images = [x for x in valid_list_all if x not in val_list_delete]
-            print("Loaded %d val images, skipped: %d" % (len(images), len(val_list_delete)))
-        elif self.split == 'test':
+        ignore = set()
+        if self.split == 'test':
             images = [x[:-4] for x in os.listdir(self.img_dir)]
+        else:
+            images = self._read_split_file(self.split)
+            if self.split == 'train' and with_valid:
+                val = self._read_split_file('val')
+                images += val
+            ignore = set(self._read_split_file('ignore'))
+            images = [x for x in images if x not in ignore]
+        print("Loaded %d %s images, skipped: %d" % (len(images), self.split, len(ignore)))
         return images
 
     def load_car_models(self):
