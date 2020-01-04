@@ -17,7 +17,7 @@ from utils.camera import create_camera_matrix
 
 class KaggleCars(data.Dataset):
     num_classes = 1
-    default_resolution = [384, 1280]
+    default_resolution = [512, 1280]
     # TODO: correct image stats
     mean = np.array([0.485, 0.456, 0.406], np.float32).reshape(1, 1, 3)
     std = np.array([0.229, 0.224, 0.225], np.float32).reshape(1, 1, 3)

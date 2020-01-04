@@ -150,6 +150,8 @@ class opts(object):
     # car_pose_6dof
     self.parser.add_argument('--whole_img', action='store_true', default=False,
                              help='do not crop the image')
+    self.parser.add_argument('--pad_img_ratio', type=float, default=0.3,
+                             help='equaly pad image on left and right ')
     # loss
     self.parser.add_argument('--mse_loss', action='store_true',
                              help='use mse loss or focal loss to train '

@@ -1,4 +1,6 @@
 import math
+
+import cv2
 import numpy as np
 
 
@@ -9,10 +11,30 @@ def create_camera_matrix():
         [0, 0, 1., 0]
     ], dtype=np.float32)
 
-def project_point(p, calib):
+
+def proj_point(p, calib):
     p = np.dot(calib[:,:3], p)
     p = p[:2] / p[2]
     return p
+
+
+def proj_points(pts_3d, rot_euler, translation, calib):
+    # project 3D points to 2d image plane
+    rot_mat = euler_angles_to_rotation_matrix(rot_euler)
+    rvect, _ = cv2.Rodrigues(rot_mat)
+    imgpts, jac = cv2.projectPoints(
+        np.float32(pts_3d), rvect, translation, calib[:,:3],
+        distCoeffs=None)
+    imgpts = np.int32(imgpts).reshape(-1, 2)
+    return imgpts
+
+
+def calc_bbox(pts_3d, rot_euler, translation, calib):
+    pts_2d = proj_points(pts_3d, rot_euler, translation, calib)
+    x1, y1, x2, y2 = (pts_2d[:, 0].min(), pts_2d[:, 1].min(),
+                      pts_2d[:, 0].max(), pts_2d[:, 1].max())
+    return [x1, y1, x2, y2]
+
 
 def euler_angles_to_rotation_matrix(angle):
     """Convert euler angels to quaternions.
