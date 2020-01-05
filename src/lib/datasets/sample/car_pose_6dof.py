@@ -24,9 +24,10 @@ class CarPose6DoFDataset(data.Dataset):
         img_id = self.images[index]
         img_path = os.path.join(self.img_dir, img_id+'.jpg')
         img = cv2.imread(img_path)
+        x_offset = 0
         if self.opt.img_bottom_half:
-            h_mid = img.shape[0] // 2
-            img = img[h_mid:]
+            x_offset = img.shape[0] // 2
+            img = img[x_offset:]
 
         height, width = img.shape[0], img.shape[1]
         c = np.array([width / 2., height / 2.])
@@ -36,13 +37,12 @@ class CarPose6DoFDataset(data.Dataset):
             s = np.array([width, height], dtype=np.int32)
 
         aug = False
-        # if False and self.split == 'train' and np.random.random() < self.opt.aug_ddd:
-        #     aug = True
-        #     sf = self.opt.scale
-        #     cf = self.opt.shift
-        #     s = s * np.clip(np.random.randn()*sf + 1, 1 - sf, 1 + sf)
-        #     c[0] += img.shape[1] * np.clip(np.random.randn()*cf, -2*cf, 2*cf)
-        #     c[1] += img.shape[0] * np.clip(np.random.randn()*cf, -2*cf, 2*cf)
+        flipped = False
+
+        if self.split == 'train' and np.random.random() < self.opt.flip:
+            flipped = True
+            img = img[:, ::-1, :]
+            c[0] =  width - c[0] - 1
 
         trans_input = get_affine_transform(c, s, 0, [inp_w, inp_h])
         inp = cv2.warpAffine(
@@ -78,19 +78,21 @@ class CarPose6DoFDataset(data.Dataset):
             cls_id = 0 # ann['car_id']
             ct = proj_point(ann['location'], calib)
             bbox = ann['bbox']
+            if flipped:
+                ct[0] = width - ct[0] - 1
+                bbox[[0, 2]] = width - bbox[[2, 0]] - 1
             if pad_w_pct > 0:
-                offset = int(width * pad_w_pct / 2)
-                ct[0] += offset
-                bbox[[0, 2]] += offset
+                y_offset = int(width * pad_w_pct / 2)
+                ct[0] += y_offset
+                bbox[[0, 2]] += y_offset
             if self.opt.img_bottom_half:
-                ct[1] -= height
-                bbox[[1, 3]] -= height
+                ct[1] -= x_offset
+                bbox[[1, 3]] -= x_offset
             ct = affine_transform(ct, trans_output)
+            ct0 = np.copy(ct)
             ct[0] = np.clip(ct[0], 0, hm.shape[2] - 1)
             ct[1] = np.clip(ct[1], 0, hm.shape[1] - 1)
             ct_int = ct.astype(np.int32)
-            # if flipped:
-            #   bbox[[0, 2]] = width - bbox[[2, 0]] - 1
             bbox[:2] = affine_transform(bbox[:2], trans_output)
             bbox[2:] = affine_transform(bbox[2:], trans_output)
             bbox[[0, 2]] = np.clip(bbox[[0, 2]], 0, hm.shape[2] - 1)
@@ -105,8 +107,8 @@ class CarPose6DoFDataset(data.Dataset):
                 rot[k] = euler_angles_to_quaternions(ann['rotation'])
                 dep[k] = ann['location'][-1]
                 ind[k] = ct_int[1] * hm.shape[2] + ct_int[0]
-                reg[k] = ct - ct_int
-                reg_mask[k] = 1 if not aug else 0
+                reg[k] = ct0 - ct_int
+                reg_mask[k] = 1 # if not aug else 0
                 rot_mask[k] = 1
                 # x, y, score, r1-r4, depth, wh?, cls
                 gt_det.append([ct[0], ct[1], 1, *rot[k].tolist(), dep[k], cls_id])
