@@ -9,8 +9,7 @@ import torch.utils.data as data
 
 from utils.camera import create_camera_matrix, euler_angles_to_rotation_matrix, euler_angles_to_quaternions, proj_point, calc_bbox
 from utils.car_models import car_id2name
-from utils.image import get_affine_transform, affine_transform
-from utils.image import gaussian_radius, draw_umich_gaussian, draw_msra_gaussian
+from utils.image import get_affine_transform, affine_transform, gaussian_radius, draw_umich_gaussian, draw_msra_gaussian
 from utils.kaggle_cars_utils import pad_img_sides, parse_annot_str
 
 
@@ -80,7 +79,9 @@ class CarPose6DoFDataset(data.Dataset):
             ct = proj_point(ann['location'], calib)
             bbox = ann['bbox']
             if pad_w_pct > 0:
-                ct[0] += width * pad_w_pct / 2
+                offset = int(width * pad_w_pct / 2)
+                ct[0] += offset
+                bbox[[0, 2]] += offset
             if self.opt.img_bottom_half:
                 ct[1] -= height
                 bbox[[1, 3]] -= height
