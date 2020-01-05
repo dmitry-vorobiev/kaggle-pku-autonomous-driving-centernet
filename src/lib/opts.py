@@ -152,6 +152,8 @@ class opts(object):
                              help='do not crop the image')
     self.parser.add_argument('--pad_img_ratio', type=float, default=0.3,
                              help='equaly pad image on left and right ')
+    self.parser.add_argument('--aug_shift', type=float, default=0.2,
+                             help='probability of applying shift augmentation.')
     # loss
     self.parser.add_argument('--mse_loss', action='store_true',
                              help='use mse loss or focal loss to train '

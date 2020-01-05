@@ -20,7 +20,7 @@ def proj_point(p, calib):
 
 def proj_points(pts_3d, rot_euler, translation, calib):
     # project 3D points to 2d image plane
-    rot_mat = euler_angles_to_rotation_matrix(rot_euler)
+    rot_mat = euler_angles_to_rotation_matrix(rot_euler).T
     rvect, _ = cv2.Rodrigues(rot_mat)
     imgpts, jac = cv2.projectPoints(
         np.float32(pts_3d), rvect, translation, calib[:,:3],

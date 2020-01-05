@@ -36,13 +36,17 @@ class CarPose6DoFDataset(data.Dataset):
         else:
             s = np.array([width, height], dtype=np.int32)
 
-        aug = False
-        flipped = False
-
-        if self.split == 'train' and np.random.random() < self.opt.flip:
-            flipped = True
-            img = img[:, ::-1, :]
-            c[0] =  width - c[0] - 1
+        aug, flipped = False, False
+        if self.split == 'train':
+            if np.random.random() < self.opt.aug_shift:
+                aug = True
+                cf = self.opt.shift
+                c[0] += width * np.clip(np.random.randn()*cf, -2*cf, 2*cf)
+                c[1] += height * np.clip(np.random.randn()*cf, -2*cf, 2*cf)
+            if np.random.random() < self.opt.flip:
+                flipped = True
+                img = img[:, ::-1, :]
+                c[0] = width - c[0] - 1
 
         trans_input = get_affine_transform(c, s, 0, [inp_w, inp_h])
         inp = cv2.warpAffine(
@@ -75,7 +79,7 @@ class CarPose6DoFDataset(data.Dataset):
         gt_det = []
         for k in range(num_objs):
             ann = anns[k]
-            cls_id = 0 # ann['car_id']
+            cls_id = 0  # ann['car_id']
             ct = proj_point(ann['location'], calib)
             bbox = ann['bbox']
             if flipped:
@@ -98,7 +102,8 @@ class CarPose6DoFDataset(data.Dataset):
             bbox[[0, 2]] = np.clip(bbox[[0, 2]], 0, hm.shape[2] - 1)
             bbox[[1, 3]] = np.clip(bbox[[1, 3]], 0, hm.shape[1] - 1)
             h, w = bbox[3] - bbox[1], bbox[2] - bbox[0]
-            if h > 0 and w > 0:
+            pad_px = (hm.shape[2] - out_w) // 2
+            if h > 0 and w > 0 and bbox[2] > pad_px and bbox[0] < hm.shape[2] - pad_px:
                 radius = gaussian_radius((h, w))
                 radius = max(0, int(radius))
                 draw_gaussian(hm[0], ct, radius)
@@ -108,10 +113,11 @@ class CarPose6DoFDataset(data.Dataset):
                 dep[k] = ann['location'][-1]
                 ind[k] = ct_int[1] * hm.shape[2] + ct_int[0]
                 reg[k] = ct0 - ct_int
-                reg_mask[k] = 1 # if not aug else 0
+                reg_mask[k] = 1 if not aug else 0
                 rot_mask[k] = 1
                 # x, y, score, r1-r4, depth, wh?, cls
-                gt_det.append([ct[0], ct[1], 1, *rot[k].tolist(), dep[k], cls_id])
+                gt_det.append(
+                    [ct[0], ct[1], 1, *rot[k].tolist(), dep[k], cls_id])
                 if self.opt.reg_bbox:
                     gt_det[-1] = gt_det[-1][:-1] + [w, h] + [gt_det[-1][-1]]
 
@@ -136,7 +142,7 @@ class CarPose6DoFDataset(data.Dataset):
         for car in cars:
             car_name = car_id2name[car['car_id']].name
             car_model = self.car_models[car_name]
-            bbox = calc_bbox(car_model['vertices'], car['rotation'], 
+            bbox = calc_bbox(car_model['vertices'], car['rotation'],
                              car['location'], self.calib)
             car['bbox'] = np.array(bbox)
         return cars

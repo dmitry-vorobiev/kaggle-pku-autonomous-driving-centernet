@@ -101,7 +101,8 @@ class CarPose6DoFTrainer(BaseTrainer):
             debugger.add_blend_img(img, pred, 'hm_pred')
             debugger.add_blend_img(img, gt, 'hm_gt')
             if opt.debug ==4:
-                debugger.save_all_imgs(opt.debug_dir, prefix='{}'.format(iter_id))
+                prefix = '{}_{}_'.format(iter_id, batch['meta']['img_id'][0])
+                debugger.save_all_imgs(opt.debug_dir, prefix=prefix)
             else:
                 debugger.show_all_imgs(pause=True)
 
