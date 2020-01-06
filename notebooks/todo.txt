@@ -1,0 +1,14 @@
+1. add quaternion_upper_hemispere restriction
+2. port other rotation losses
+3. setup proper saving to csv
+4. aug: uniform noise / grain
+5. aug: brightness
+6. exclude predictions by provided masks
+
+
+Strange boxes:
+ID_0070b0509
+ID_01a430f33
+
+Bad labels:
+ID_43418db16

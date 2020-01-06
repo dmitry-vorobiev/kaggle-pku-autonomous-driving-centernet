@@ -228,3 +228,18 @@ def color_aug(data_rng, image, eig_val, eig_vec):
     for f in functions:
         f(data_rng, image, gs, gs_mean, 0.4)
     lighting_(data_rng, image, 0.1, eig_val, eig_vec)
+
+
+def pad_img_sides(img, pad_pct):
+    """ Pad image on left and right
+        Input:
+            img - image of shape (C, H, W)
+            pad_pct - portion of added width relative to the original width
+        Output:
+            img
+    """
+    c, h, w = img.shape
+    empty_shape = (c, h, int(w * pad_pct / 2))
+    empty = np.ones(empty_shape, dtype=img.dtype) * img.mean(2, keepdims=True)
+    img = np.concatenate([empty, img, empty], axis=2)
+    return img

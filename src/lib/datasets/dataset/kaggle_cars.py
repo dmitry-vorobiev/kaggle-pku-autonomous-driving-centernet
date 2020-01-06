@@ -13,7 +13,8 @@ import torch.utils.data as data
 from collections import OrderedDict
 
 from utils import car_models
-from utils.camera import create_camera_matrix
+from utils.camera import calc_bbox, create_camera_matrix
+from utils.kaggle_cars_utils import parse_annot_str
 
 class KaggleCars(data.Dataset):
     num_classes = 1
@@ -39,10 +40,9 @@ class KaggleCars(data.Dataset):
         self.split = split
         self.opt = opt
 
-        print('==> initializing pku-autonomous-driving %s data.' % split)
-        self.df = pd.read_csv(os.path.join(self.data_dir, 'train.csv'))
-        self.car_models = self.load_car_models()
+        print('==> Initializing pku-autonomous-driving %s data.' % split)
         self.images = self.get_img_list(opt.trainval)
+        self.anns = self.load_annotations(self.images)
         self.num_samples = len(self.images)
 
     def __len__(self):
@@ -75,14 +75,22 @@ class KaggleCars(data.Dataset):
                 images += val
             ignore = set(self._read_split_file('ignore'))
             images = [x for x in images if x not in ignore]
-        print("Loaded %d %s images, skipped: %d" % (len(images), self.split, len(ignore)))
+        print("===> Loaded %d %s images IDs, skipped: %d" % (len(images), self.split, len(ignore)))
         return images
 
+    def load_annotations(self, img_ids):
+        anns = []
+        if self.split != 'test':
+            df = pd.read_csv(os.path.join(self.data_dir, 'train.csv'))
+            models_3D = self.load_car_models()
+            print("====> Loaded %d 3D models" % len(models_3D))
+            anns = [self.gen_img_annotation(img_id, df, models_3D) for img_id in img_ids]
+            print('=====> Loaded %d %s annotations.' % (len(anns), self.split))
+        return anns
+
     def load_car_models(self):
-        """Load all the car models
-        """
+        """Load all the car models"""
         car_models_all = OrderedDict([])
-        print('loading %d car models' % len(car_models.models))
         for model in car_models.models:
             car_model = os.path.join(self.data_dir, 'car_models_json', model.name+'.json')
             with open(car_model) as json_file:
@@ -93,6 +101,18 @@ class KaggleCars(data.Dataset):
             car['vertices'][:, [0, 1]] *= -1
             car_models_all[model.name] = car 
         return car_models_all
+
+    def gen_img_annotation(self, img_id, df, models_3D):
+        cond = df['ImageId'] == img_id
+        cars = df.loc[cond, 'PredictionString'].values[0]
+        cars = parse_annot_str(str(cars))
+        for car in cars:
+            car_name = car_models.car_id2name[car['car_id']].name
+            car_model = models_3D[car_name]
+            bbox = calc_bbox(car_model['vertices'], car['rotation'],
+                             car['location'], self.calib)
+            car['bbox'] = np.array(bbox)
+        return cars
 
     def save_results(self, results, save_dir):
         results_dir = os.path.join(save_dir, 'results')

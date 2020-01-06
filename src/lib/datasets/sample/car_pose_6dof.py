@@ -7,10 +7,9 @@ import cv2
 import numpy as np
 import torch.utils.data as data
 
-from utils.camera import create_camera_matrix, euler_angles_to_rotation_matrix, euler_angles_to_quaternions, proj_point, calc_bbox
+from utils.camera import create_camera_matrix, euler_angles_to_rotation_matrix, euler_angles_to_quaternions, proj_point
 from utils.car_models import car_id2name
-from utils.image import get_affine_transform, affine_transform, gaussian_radius, draw_umich_gaussian, draw_msra_gaussian
-from utils.kaggle_cars_utils import pad_img_sides, parse_annot_str
+from utils.image import get_affine_transform, affine_transform, gaussian_radius, draw_umich_gaussian, draw_msra_gaussian, pad_img_sides
 
 
 class CarPose6DoFDataset(data.Dataset):
@@ -71,7 +70,7 @@ class CarPose6DoFDataset(data.Dataset):
             inp = pad_img_sides(inp, pad_w_pct)
             hm = pad_img_sides(hm, pad_w_pct)
 
-        anns = self.find_car_poses(img_id)
+        anns = self.anns[index]
         num_objs = min(len(anns), self.max_objs)
         draw_gaussian = draw_msra_gaussian if self.opt.mse_loss else \
             draw_umich_gaussian
@@ -134,15 +133,3 @@ class CarPose6DoFDataset(data.Dataset):
                     'image_path': img_path, 'img_id': img_id}
             ret['meta'] = meta
         return ret
-
-    def find_car_poses(self, img_id):
-        cond = self.df['ImageId'] == img_id
-        cars = self.df.loc[cond, 'PredictionString'].values[0]
-        cars = parse_annot_str(str(cars))
-        for car in cars:
-            car_name = car_id2name[car['car_id']].name
-            car_model = self.car_models[car_name]
-            bbox = calc_bbox(car_model['vertices'], car['rotation'],
-                             car['location'], self.calib)
-            car['bbox'] = np.array(bbox)
-        return cars
