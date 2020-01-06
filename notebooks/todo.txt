@@ -4,6 +4,8 @@
 4. aug: uniform noise / grain
 5. aug: brightness
 6. exclude predictions by provided masks
+7. add more classes
+8. add denth location masks
 
 
 Strange boxes:

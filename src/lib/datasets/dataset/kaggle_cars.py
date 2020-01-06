@@ -13,7 +13,7 @@ import torch.utils.data as data
 from collections import OrderedDict
 
 from utils import car_models
-from utils.camera import calc_bbox, create_camera_matrix
+from utils.geometry import calc_bbox, create_camera_matrix
 from utils.kaggle_cars_utils import parse_annot_str
 
 class KaggleCars(data.Dataset):

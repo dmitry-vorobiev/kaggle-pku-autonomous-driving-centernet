@@ -7,8 +7,7 @@ import cv2
 import numpy as np
 import torch.utils.data as data
 
-from utils.camera import create_camera_matrix, euler_angles_to_rotation_matrix, euler_angles_to_quaternions, proj_point
-from utils.car_models import car_id2name
+from utils.geometry import create_camera_matrix, euler_angles_to_rotation_matrix, euler_angles_to_quaternions, proj_point, quaternion_upper_hemispher
 from utils.image import get_affine_transform, affine_transform, gaussian_radius, draw_umich_gaussian, draw_msra_gaussian, pad_img_sides
 
 
@@ -108,7 +107,9 @@ class CarPose6DoFDataset(data.Dataset):
                 draw_gaussian(hm[0], ct, radius)
 
                 wh[k] = 1. * w, 1. * h
-                rot[k] = euler_angles_to_quaternions(ann['rotation'])
+                q = euler_angles_to_quaternions(ann['rotation'])[0]
+                q = quaternion_upper_hemispher(q)
+                rot[k] = q
                 dep[k] = ann['location'][-1]
                 ind[k] = ct_int[1] * hm.shape[2] + ct_int[0]
                 reg[k] = ct0 - ct_int

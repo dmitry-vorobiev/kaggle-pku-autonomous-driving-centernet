@@ -5,7 +5,7 @@ from __future__ import print_function
 import numpy as np
 from .image import transform_preds
 from .ddd_utils import ddd2locrot, unproject_2d_to_3d
-from utils.camera import quaternion_to_euler_angle
+from utils.geometry import quaternion_to_euler_angle
 
 
 def get_pred_depth(depth):
