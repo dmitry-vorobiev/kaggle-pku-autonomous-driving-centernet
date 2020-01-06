@@ -3,6 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 import torch
+import torch.nn.functional as F
 import numpy as np
 
 from models.losses import FocalLoss, L1Loss, BinRotLoss
@@ -44,7 +45,8 @@ class CarPose6DoFLoss(torch.nn.Module):
                 dep_loss += self.crit_reg(output['dep'], batch['reg_mask'],
                                           batch['ind'], batch['dep']) / opt.num_stacks
             if opt.rot_weight > 0:
-                rot_loss += self.crit_reg(output['rot'], batch['rot_mask'],
+                rot_pred = F.normalize(output['rot'], p=2, dim=1)
+                rot_loss += self.crit_reg(rot_pred, batch['rot_mask'],
                                           batch['ind'], batch['rot']) / opt.num_stacks
             if opt.reg_bbox and opt.wh_weight > 0:
                 wh_loss += self.crit_reg(output['wh'], batch['rot_mask'],

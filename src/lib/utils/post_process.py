@@ -104,6 +104,8 @@ def car_6dof_post_process(dets, c, s, calibs, opt):
             locations = np.vstack(
                 [unproject_2d_to_3d(center, depth, calibs[0]).reshape(-1)
                  for center, depth in zip(centers, depths)])
+            norm = np.linalg.norm(quaternions, axis=1)[:, np.newaxis]
+            quaternions = quaternions / norm
             rot_eulers = np.vstack(
                 [quaternion_to_euler_angle(q) for q in quaternions])
             preds = [rot_eulers.astype(np.float32),
