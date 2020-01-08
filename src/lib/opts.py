@@ -148,6 +148,9 @@ class opts(object):
                              help='different validation split for kitti: '
                                   '3dop | subcnn')
     # car_pose_6dof
+    self.parser.add_argument('--split_dir', default='', 
+                             help='path to dir containing train.txt and val.txt'
+                                  'split files')
     self.parser.add_argument('--whole_img', action='store_true', default=False,
                              help='do not crop the image')
     self.parser.add_argument('--pad_img_ratio', type=float, default=0.3,

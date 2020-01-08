@@ -54,7 +54,10 @@ class KaggleCars(data.Dataset):
         return dir_name
 
     def _read_split_file(self, split):
-        path = os.path.join(self.data_dir, 'split', split+'.txt')
+        split_dir = self.opt.split_dir
+        if not os.path.isdir(split_dir):
+            split_dir = os.path.join(self.data_dir, 'split')
+        path = os.path.join(split_dir, split+'.txt')
         with open(path) as f:
             return [line.rstrip('\n')[:-4] for line in f]
 
