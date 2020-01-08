@@ -9,6 +9,7 @@
 10. add more debug out; pass in debug params
 11. rotation shape similarity ?
 12. smooth l1 for rotation/translation ?
+13. init from pretrained
 
 Strange boxes:
 ID_0070b0509
