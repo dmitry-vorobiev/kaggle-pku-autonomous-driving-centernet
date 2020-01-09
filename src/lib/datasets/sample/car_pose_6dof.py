@@ -63,6 +63,7 @@ class CarPose6DoFDataset(data.Dataset):
         ind = np.zeros((self.max_objs), dtype=np.int64)
         reg_mask = np.zeros((self.max_objs), dtype=np.uint8)
         rot_mask = np.zeros((self.max_objs), dtype=np.uint8)
+        subcls = np.zeros((self.max_objs), dtype=np.uint8)
 
         trans_output = get_affine_transform(c, s, 0, [out_w, out_h])
         if pad_w_pct > 0:
@@ -115,6 +116,7 @@ class CarPose6DoFDataset(data.Dataset):
                 reg[k] = ct0 - ct_int
                 reg_mask[k] = 1 if not aug else 0
                 rot_mask[k] = 1
+                subcls[k] = ann['car_id']
                 # x, y, score, r1-r4, depth, wh?, cls
                 gt_det.append(
                     [ct[0], ct[1], 1, *rot[k].tolist(), dep[k], cls_id])
@@ -122,7 +124,7 @@ class CarPose6DoFDataset(data.Dataset):
                     gt_det[-1] = gt_det[-1][:-1] + [w, h] + [gt_det[-1][-1]]
 
         ret = {'input': inp, 'hm': hm, 'dep': dep, 'rot': rot, 'ind': ind,
-               'reg_mask': reg_mask, 'rot_mask': rot_mask}
+               'reg_mask': reg_mask, 'rot_mask': rot_mask, 'subcls': subcls}
         if self.opt.reg_bbox:
             ret.update({'wh': wh})
         if self.opt.reg_offset:

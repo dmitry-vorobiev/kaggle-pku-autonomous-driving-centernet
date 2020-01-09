@@ -85,15 +85,23 @@ def ddd_post_process(dets, c, s, calibs, opt):
     return dets
 
 
-def car_6dof_post_process(dets, c, s, calibs, opt):
+def car_6dof_post_process(dets, c, s, subcls, calibs, opt):
     # dets: batch x max_dets x dim
     # return 1-based class det list
     ret = []
     include_wh = opt.reg_bbox
+    out_shape = (opt.output_w, opt.output_h)
     for i in range(dets.shape[0]):
         top_preds = {}
         dets[i, :, :2] = transform_preds(
-            dets[i, :, 0:2], c[i], s[i], (opt.output_w, opt.output_h))
+            dets[i, :, 0:2], c[i], s[i], out_shape)
+        if opt.pad_img_ratio > 0:
+            # TODO: read orig img width value from somewhere
+            x_offset = int(3384 * opt.pad_img_ratio / 2)
+            dets[i, :, 0] -= x_offset
+        if opt.img_bottom_half:
+            y_offset = 2710 // 2
+            dets[i, :, 1] += y_offset
         classes = dets[i, :, -1]
         for j in range(opt.num_classes):
             inds = (classes == j)
@@ -108,14 +116,17 @@ def car_6dof_post_process(dets, c, s, calibs, opt):
             quaternions = quaternions / norm
             rot_eulers = np.vstack(
                 [quaternion_to_euler_angle(q) for q in quaternions])
-            preds = [rot_eulers.astype(np.float32),
-                     locations.astype(np.float32)]
+            preds = [rot_eulers, locations]
             if include_wh:
                 wh = transform_preds(
-                    dets[i, inds, 8:10], c[i], s[i],
-                    (opt.output_w, opt.output_h))
-                preds.append(wh.astype(np.float32))
-            preds.append(scores.astype(np.float32))
+                    dets[i, inds, 8:10], c[i], s[i], out_shape)
+                preds.append(wh)
+            subcls = subcls[0]
+            pad_amt = len(scores) - len(subcls)
+            if pad_amt > 0:
+                subcls = np.pad(subcls, (0, pad_amt), mode='constant', constant_values=0)
+            preds += [subcls[:,np.newaxis], scores]
+            preds = [arr.astype(np.float32) for arr in preds]
             top_preds[j + 1] = np.concatenate(preds, axis=1)
         ret.append(top_preds)
     return ret

@@ -10,6 +10,7 @@
 11. rotation shape similarity ?
 12. smooth l1 for rotation/translation ?
 13. init from pretrained
+14. add 3D models debug visualisations
 
 Strange boxes:
 ID_0070b0509

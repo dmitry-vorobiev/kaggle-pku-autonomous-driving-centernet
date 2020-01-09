@@ -117,11 +117,13 @@ class CarPose6DoFTrainer(BaseTrainer):
             wh=wh, reg=reg, K=opt.K)
         # x, y, score, r1-r4, depth, cls
         dets = dets.detach().cpu().numpy().reshape(1, -1, dets.shape[2])
+        c = batch['meta']['c'].detach().numpy()
+        s = batch['meta']['s'].detach().numpy()
+        subcls = batch['subcls'].detach().cpu().numpy()
         calib = batch['meta']['calib'].detach().numpy()
-        # x, y, z, yaw, pitch, roll, score
+        # yaw, pitch, roll, x, y, z, wh?, subcls, score
         dets_pred = car_6dof_post_process(
-            dets.copy(), batch['meta']['c'].detach().numpy(),
-            batch['meta']['s'].detach().numpy(), calib, opt)
+            dets.copy(), c, s, subcls, calib, opt)
         img_id = batch['meta']['img_id'][0]
         results[img_id] = dets_pred[0]
         for j in range(1, opt.num_classes + 1):
