@@ -9,14 +9,13 @@ import time
 import torch
 
 
-from models.decode import ddd_decode
+from models.decode import car_pose_6dof_decode
 from models.utils import flip_tensor
-from utils.camera import create_camera_matrix
-from utils.image import get_affine_transform
-from utils.post_process import ddd_post_process
+from utils.geometry import create_camera_matrix
+from utils.image import get_affine_transform, pad_img_sides
+from utils.post_process import car_6dof_post_process
 from utils.debugger import Debugger
-from utils.ddd_utils import compute_box_3d, project_to_image, alpha2rot_y
-from utils.ddd_utils import draw_box_3d, unproject_2d_to_3d
+from utils.ddd_utils import compute_box_3d, project_to_image, alpha2rot_y, draw_box_3d, unproject_2d_to_3d
 
 from .base_detector import BaseDetector
 
@@ -26,8 +25,11 @@ class CarPose6DoFDetector(BaseDetector):
         self.calib = create_camera_matrix()
 
     def pre_process(self, image, scale, calib=None):
+        if self.opt.img_bottom_half:
+            x_offset = image.shape[0] // 2
+            image = image[x_offset:]
+
         height, width = image.shape[0:2]
-        
         inp_height, inp_width = self.opt.input_h, self.opt.input_w
         c = np.array([width / 2, height / 2], dtype=np.float32)
         if self.opt.keep_res:
@@ -42,6 +44,10 @@ class CarPose6DoFDetector(BaseDetector):
         inp_image = (inp_image.astype(np.float32) / 255.)
         inp_image = (inp_image - self.mean) / self.std
         images = inp_image.transpose(2, 0, 1)[np.newaxis, ...]
+
+        if self.opt.pad_img_ratio > 0:
+            inp_image = pad_img_sides(inp_image, self.opt.pad_img_ratio)
+
         calib = np.array(calib, dtype=np.float32) if calib is not None \
                 else self.calib
         images = torch.from_numpy(images)
@@ -61,9 +67,9 @@ class CarPose6DoFDetector(BaseDetector):
             reg = output['reg'] if self.opt.reg_offset else None
             torch.cuda.synchronize()
             forward_time = time.time()
-            # TODO: make proper decoder
-            dets = ddd_decode(output['hm'], output['rot'], output['dep'],
-                              output['dim'], wh=wh, reg=reg, K=self.opt.K)
+            dets = car_pose_6dof_decode(
+                output['hm'], output['rot'], output['dep'],
+                wh=wh, reg=reg, K=self.opt.K)
         if return_time:
             return output, dets, forward_time
         else:
@@ -71,9 +77,9 @@ class CarPose6DoFDetector(BaseDetector):
 
     def post_process(self, dets, meta, scale=1):
         dets = dets.detach().cpu().numpy()
-        # TODO: make proper postprocess
-        detections = ddd_post_process(dets.copy(), [meta['c']], [meta['s']], 
-                                      [meta['calib']], self.opt)
+        detections = car_6dof_post_process(
+            dets.copy(), [meta['c']], [meta['s']], [meta['calib']], 
+            self.opt)
         self.this_calib = meta['calib']
         return detections[0]
 
@@ -86,6 +92,8 @@ class CarPose6DoFDetector(BaseDetector):
         return results
 
     def debug(self, debugger, images, dets, output, scale=1):
+        # TODO: debug
+        raise NotImplementedError
         dets = dets.detach().cpu().numpy()
         img = images[0].detach().cpu().numpy().transpose(1, 2, 0)
         img = ((img * self.std + self.mean) * 255).astype(np.uint8)
@@ -96,6 +104,8 @@ class CarPose6DoFDetector(BaseDetector):
             center_thresh=self.opt.vis_thresh, img_id='det_pred')
   
     def show_results(self, debugger, image, results):
+        # TODO: vis
+        raise NotImplementedError
         debugger.add_3d_detection(
             image, results, self.this_calib,
             center_thresh=self.opt.vis_thresh, img_id='add_pred')
