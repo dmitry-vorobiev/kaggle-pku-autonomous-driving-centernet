@@ -129,7 +129,7 @@ class KaggleCars(data.Dataset):
                     preds.append(pose_str)
             df.loc[i, 'PredictionString'] = ' '.join(preds)
         df['PredictionString'].fillna('', inplace=True)
-        out_path = os.path.join(results_dir, 'preds.csv')
+        out_path = os.path.join(results_dir, 'predictions.csv')
         df.to_csv(out_path, index=False)
 
     def run_eval(self, results, save_dir):

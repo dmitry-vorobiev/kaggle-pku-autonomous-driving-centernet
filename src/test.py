@@ -110,7 +110,7 @@ def test(opt):
     detector.set_models(dataset.models)
 
   results = {}
-  num_iters = 5 # len(dataset)
+  num_iters = len(dataset)
   bar = Bar('{}'.format(opt.exp_id), max=num_iters)
   time_stats = ['tot', 'load', 'pre', 'net', 'dec', 'post', 'merge']
   avg_time_stats = {t: AverageMeter() for t in time_stats}
