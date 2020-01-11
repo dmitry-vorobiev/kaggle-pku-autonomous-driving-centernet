@@ -85,7 +85,7 @@ def ddd_post_process(dets, c, s, calibs, opt):
     return dets
 
 
-def car_6dof_post_process(dets, c, s, subcls, calibs, opt):
+def car_6dof_post_process(dets, c, s, calibs, opt):
     # dets: batch x max_dets x dim
     # return 1-based class det list
     ret = []
@@ -121,11 +121,7 @@ def car_6dof_post_process(dets, c, s, subcls, calibs, opt):
                 wh = transform_preds(
                     dets[i, inds, 8:10], c[i], s[i], out_shape)
                 preds.append(wh)
-            subcls = subcls[0]
-            pad_amt = len(scores) - len(subcls)
-            if pad_amt > 0:
-                subcls = np.pad(subcls, (0, pad_amt), mode='constant', constant_values=0)
-            preds += [subcls[:,np.newaxis], scores]
+            preds.append(scores)
             preds = [arr.astype(np.float32) for arr in preds]
             top_preds[j + 1] = np.concatenate(preds, axis=1)
         ret.append(top_preds)

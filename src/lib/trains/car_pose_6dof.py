@@ -90,15 +90,13 @@ class CarPose6DoFTrainer(BaseTrainer):
         dets = dets.detach().cpu().numpy().reshape(1, -1, dets.shape[2])
         c = batch['meta']['c'].detach().numpy()
         s = batch['meta']['s'].detach().numpy()
-        subcls = batch['subcls'].detach().cpu().numpy()
         calib = batch['meta']['calib'].detach().numpy()
-        # yaw, pitch, roll, x, y, z, wh?, subcls, score
+        # yaw, pitch, roll, x, y, z, wh?, score
         dets_pred = car_6dof_post_process(
-            dets.copy(), c, s, subcls, calib, opt)
-        # dets_gt = car_6dof_post_process(
-        #     batch['meta']['gt_det'].detach().numpy().copy(),
-        #     batch['meta']['c'].detach().numpy(),
-        #     batch['meta']['s'].detach().numpy(), calib, opt)
+            dets.copy(), c, s, calib, opt)
+        dets_gt = car_6dof_post_process(
+            batch['meta']['gt_det'].detach().numpy().copy(),
+            c, s, calib, opt)
         car_name = car_models.models[0].name
         car_model = self.models[car_name]
         for i in range(1):
@@ -106,12 +104,13 @@ class CarPose6DoFTrainer(BaseTrainer):
                                 theme=opt.debugger_theme)
             img = batch['input'][i].detach().cpu().numpy().transpose(1, 2, 0)
             img = ((img * self.opt.std + self.opt.mean) * 255.).astype(np.uint8)
-            pred = debugger.gen_colormap(
-                output['hm'][i].detach().cpu().numpy())
-            gt = debugger.gen_colormap(batch['hm'][i].detach().cpu().numpy())
-            debugger.add_blend_img(img, pred, 'hm_pred')
-            debugger.add_blend_img(img, gt, 'hm_gt')
-            debugger.add_car_masks(img, dets_pred[0], car_model, c, s, calib, opt)
+            if opt.debug_gen_hm:
+                pred = debugger.gen_colormap(output['hm'][i].detach().cpu().numpy())
+                gt = debugger.gen_colormap(batch['hm'][i].detach().cpu().numpy())
+                debugger.add_blend_img(img, pred, 'hm_pred')
+                debugger.add_blend_img(img, gt, 'hm_gt')
+            debugger.add_car_masks(img, dets_pred[0], car_model, c, s, calib, opt, '3d_pred')
+            debugger.add_car_masks(img, dets_gt[0], car_model, c, s, calib, opt, '3d_gt')
             if opt.debug == 4:
                 prefix = '{}_{}_'.format(iter_id, batch['meta']['img_id'][0])
                 debugger.save_all_imgs(opt.debug_dir, prefix=prefix)
@@ -129,11 +128,10 @@ class CarPose6DoFTrainer(BaseTrainer):
         dets = dets.detach().cpu().numpy().reshape(1, -1, dets.shape[2])
         c = batch['meta']['c'].detach().numpy()
         s = batch['meta']['s'].detach().numpy()
-        subcls = batch['subcls'].detach().cpu().numpy()
         calib = batch['meta']['calib'].detach().numpy()
-        # yaw, pitch, roll, x, y, z, wh?, subcls, score
+        # yaw, pitch, roll, x, y, z, wh?, score
         dets_pred = car_6dof_post_process(
-            dets.copy(), c, s, subcls, calib, opt)
+            dets.copy(), c, s, calib, opt)
         img_id = batch['meta']['img_id'][0]
         results[img_id] = dets_pred[0]
         for j in range(1, opt.num_classes + 1):

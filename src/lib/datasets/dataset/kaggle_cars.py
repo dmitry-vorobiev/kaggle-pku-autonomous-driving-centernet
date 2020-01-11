@@ -116,16 +116,17 @@ class KaggleCars(data.Dataset):
         df = pd.DataFrame(np.empty(shape), columns=['ImageId', 'PredictionString'])
         for i, img_id in enumerate(results.keys()):
             df.loc[i, 'ImageId'] = img_id
-            cars = []
+            preds = []
             for cls_ind in results[img_id]:
                 for j in range(len(results[img_id][cls_ind])):
                     car = results[img_id][cls_ind][j]
-                    car_str = [str(car[i]) for i in [-2, 3, 4, 5, 0, 1, 2]]
-                    car_str = '%d ' % int(car[-2]) # subclass
                     # yaw, pitch, roll, x, y, z
-                    car_str += ' '.join([str(car[i]) for i in range(6)])
-                    cars.append(car_str)
-            df.loc[i, 'PredictionString'] = ' '.join(cars)
+                    pose = [str(car[i]) for i in range(6)]
+                    conf = str(car[-1])
+                    pose.append(conf)
+                    pose_str = ' '.join(pose)
+                    preds.append(pose_str)
+            df.loc[i, 'PredictionString'] = ' '.join(preds)
         out_path = os.path.join(results_dir, 'preds.csv')
         df.to_csv(out_path, index=False)
 

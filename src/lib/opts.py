@@ -56,6 +56,9 @@ class opts(object):
                              help='visualization threshold.')
     self.parser.add_argument('--debugger_theme', default='white', 
                              choices=['white', 'black'])
+    # car_pose_6dof                         
+    self.parser.add_argument('--debug_gen_hm', action='store_true', 
+                             help='generate heatmaps in debug output')
     
     # model
     self.parser.add_argument('--arch', default='dla_34', 
