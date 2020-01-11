@@ -14,6 +14,7 @@ from models.data_parallel import DataParallel
 from logger import Logger
 from datasets.dataset_factory import get_dataset
 from trains.train_factory import train_factory
+from trains.car_pose_6dof import CarPose6DoFTrainer
 
 
 def main(opt):
@@ -41,13 +42,18 @@ def main(opt):
   trainer.set_device(opt.gpus, opt.chunk_sizes, opt.device)
 
   print('Setting up data...')
+  val_dataset = Dataset(opt, 'val')
   val_loader = torch.utils.data.DataLoader(
-      Dataset(opt, 'val'), 
+      val_dataset, 
       batch_size=1, 
       shuffle=False,
       num_workers=1,
       pin_memory=True
   )
+
+  if isinstance(trainer, CarPose6DoFTrainer):
+    # pass loaded 3D models for debug visualisations
+    trainer.set_models(val_dataset.models)
 
   if opt.test:
     _, preds = trainer.val(0, val_loader)

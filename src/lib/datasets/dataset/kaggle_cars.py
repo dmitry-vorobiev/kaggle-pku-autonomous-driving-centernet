@@ -14,7 +14,7 @@ from collections import OrderedDict
 
 from utils import car_models
 from utils.geometry import calc_bbox, create_camera_matrix
-from utils.kaggle_cars_utils import parse_annot_str
+from utils.kaggle_cars_utils import load_car_models, parse_annot_str
 
 class KaggleCars(data.Dataset):
     num_classes = 1
@@ -42,7 +42,8 @@ class KaggleCars(data.Dataset):
 
         print('==> Initializing pku-autonomous-driving %s data.' % split)
         self.images = self.get_img_list(opt.trainval)
-        self.anns = self.load_annotations(self.images)
+        self.models = self.load_car_models()
+        self.anns = self.load_annotations(self.images, self.models)
         self.num_samples = len(self.images)
 
     def __len__(self):
@@ -81,29 +82,19 @@ class KaggleCars(data.Dataset):
         print("===> Loaded %d %s images IDs, skipped: %d" % (len(images), self.split, len(ignore)))
         return images
 
-    def load_annotations(self, img_ids):
+    def load_car_models(self):
+        model_dir = os.path.join(self.data_dir, 'car_models_json')
+        models_3D = load_car_models(model_dir)
+        print("====> Loaded %d 3D models" % len(models_3D))
+        return models_3D
+
+    def load_annotations(self, img_ids, models_3D):
         anns = []
         if self.split != 'test':
             df = pd.read_csv(os.path.join(self.data_dir, 'train.csv'))
-            models_3D = self.load_car_models()
-            print("====> Loaded %d 3D models" % len(models_3D))
             anns = [self.gen_img_annotation(img_id, df, models_3D) for img_id in img_ids]
             print('=====> Loaded %d %s annotations.' % (len(anns), self.split))
         return anns
-
-    def load_car_models(self):
-        """Load all the car models"""
-        car_models_all = OrderedDict([])
-        for model in car_models.models:
-            car_model = os.path.join(self.data_dir, 'car_models_json', model.name+'.json')
-            with open(car_model) as json_file:
-                car = json.load(json_file)
-            for key in ['vertices', 'faces']:
-                car[key] = np.array(car[key])
-            # fix the inconsistency between obj and pkl
-            car['vertices'][:, [0, 1]] *= -1
-            car_models_all[model.name] = car 
-        return car_models_all
 
     def gen_img_annotation(self, img_id, df, models_3D):
         cond = df['ImageId'] == img_id

@@ -9,6 +9,7 @@ import numpy as np
 from models.losses import FocalLoss, L1Loss, BinRotLoss
 from models.decode import car_pose_6dof_decode
 from models.utils import _sigmoid
+from utils import car_models
 from utils.debugger import Debugger
 from utils.post_process import car_6dof_post_process
 from utils.oracle_utils import gen_oracle_map
@@ -69,6 +70,9 @@ class CarPose6DoFTrainer(BaseTrainer):
         super(CarPose6DoFTrainer, self).__init__(
             opt, model, optimizer=optimizer)
 
+    def set_models(self, models_3D):
+        self.models = models_3D
+
     def _get_losses(self, opt):
         loss_states = ['loss', 'hm_loss', 'dep_loss', 'rot_loss',
                        'wh_loss', 'off_loss']
@@ -84,25 +88,31 @@ class CarPose6DoFTrainer(BaseTrainer):
             wh=wh, reg=reg, K=opt.K)
         # x, y, score, r1-r4, depth, wh?, cls
         dets = dets.detach().cpu().numpy().reshape(1, -1, dets.shape[2])
+        c = batch['meta']['c'].detach().numpy()
+        s = batch['meta']['s'].detach().numpy()
+        subcls = batch['subcls'].detach().cpu().numpy()
         calib = batch['meta']['calib'].detach().numpy()
-        # x, y, z, yaw, pitch, roll, score
+        # yaw, pitch, roll, x, y, z, wh?, subcls, score
         dets_pred = car_6dof_post_process(
-            dets.copy(), batch['meta']['c'].detach().numpy(),
-            batch['meta']['s'].detach().numpy(), calib, opt)
-        dets_gt = car_6dof_post_process(
-            batch['meta']['gt_det'].detach().numpy().copy(),
-            batch['meta']['c'].detach().numpy(), 
-            batch['meta']['s'].detach().numpy(), calib, opt)
+            dets.copy(), c, s, subcls, calib, opt)
+        # dets_gt = car_6dof_post_process(
+        #     batch['meta']['gt_det'].detach().numpy().copy(),
+        #     batch['meta']['c'].detach().numpy(),
+        #     batch['meta']['s'].detach().numpy(), calib, opt)
+        car_name = car_models.models[0].name
+        car_model = self.models[car_name]
         for i in range(1):
-            debugger = Debugger(dataset=opt.dataset, ipynb=(opt.debug==3),
+            debugger = Debugger(dataset=opt.dataset, ipynb=(opt.debug == 3),
                                 theme=opt.debugger_theme)
             img = batch['input'][i].detach().cpu().numpy().transpose(1, 2, 0)
             img = ((img * self.opt.std + self.opt.mean) * 255.).astype(np.uint8)
-            pred = debugger.gen_colormap(output['hm'][i].detach().cpu().numpy())
+            pred = debugger.gen_colormap(
+                output['hm'][i].detach().cpu().numpy())
             gt = debugger.gen_colormap(batch['hm'][i].detach().cpu().numpy())
             debugger.add_blend_img(img, pred, 'hm_pred')
             debugger.add_blend_img(img, gt, 'hm_gt')
-            if opt.debug ==4:
+            debugger.add_car_masks(img, dets_pred[0], car_model, c, s, calib, opt)
+            if opt.debug == 4:
                 prefix = '{}_{}_'.format(iter_id, batch['meta']['img_id'][0])
                 debugger.save_all_imgs(opt.debug_dir, prefix=prefix)
             else:

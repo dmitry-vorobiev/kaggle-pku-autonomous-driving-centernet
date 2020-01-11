@@ -1,16 +1,17 @@
 2. port other rotation losses
-3. setup proper saving to csv
+3: aug: color
 4. aug: uniform noise / grain
 5. aug: brightness
 6. exclude predictions by provided masks
 7. add more classes
-8. add denth location masks
+8. add dense coordinate masks
 9. SWA
 10. add more debug out; pass in debug params
 11. rotation shape similarity ?
 12. smooth l1 for rotation/translation ?
-13. init from pretrained
+13. try other pretrained weights
 14. add 3D models debug visualisations
+15. calc correct image stats from dataset
 
 Strange boxes:
 ID_0070b0509

@@ -66,6 +66,12 @@ def affine_transform(pt, t):
     return new_pt[:2]
 
 
+def affine_transform_pts(pts, t):
+    new_pt = np.vstack([pts.T, np.ones(pts.shape[0])])
+    new_pt = t @ new_pt
+    return new_pt.T
+
+
 def get_3rd_point(a, b):
     direct = a - b
     return b + np.array([-direct[1], direct[0]], dtype=np.float32)
