@@ -79,7 +79,7 @@ class BaseDetector(object):
   def show_results(self, debugger, image, results):
    raise NotImplementedError
 
-  def run(self, image_or_path_or_tensor, meta=None):
+  def run(self, image_or_path_or_tensor, img_id, meta=None):
     load_time, pre_time, net_time, dec_time, post_time = 0, 0, 0, 0, 0
     merge_time, tot_time = 0, 0
     debugger = Debugger(dataset=self.opt.dataset, ipynb=(self.opt.debug==3),
@@ -121,7 +121,10 @@ class BaseDetector(object):
       dec_time += decode_time - forward_time
       
       if self.opt.debug >= 2:
-        self.debug(debugger, images, dets, output, scale)
+        if self.opt.task == 'car_pose_6dof':
+          self.debug(debugger, images, dets, output, meta, scale)
+        else:
+          self.debug(debugger, images, dets, output, scale)
       
       dets = self.post_process(dets, meta, scale)
       torch.cuda.synchronize()
@@ -136,7 +139,10 @@ class BaseDetector(object):
     merge_time += end_time - post_process_time
     tot_time += end_time - start_time
 
-    if self.opt.debug >= 1:
+    if self.opt.debug == 4:
+      prefix = '{}_'.format(img_id)
+      debugger.save_all_imgs(self.opt.debug_dir, prefix=prefix)
+    elif self.opt.debug >= 1:
       self.show_results(debugger, image, results)
     
     return {'results': results, 'tot': tot_time, 'load': load_time,

@@ -105,12 +105,16 @@ class CarPose6DoFTrainer(BaseTrainer):
             img = batch['input'][i].detach().cpu().numpy().transpose(1, 2, 0)
             img = ((img * self.opt.std + self.opt.mean) * 255.).astype(np.uint8)
             if opt.debug_gen_hm:
-                pred = debugger.gen_colormap(output['hm'][i].detach().cpu().numpy())
-                gt = debugger.gen_colormap(batch['hm'][i].detach().cpu().numpy())
+                pred = debugger.gen_colormap(
+                    output['hm'][i].detach().cpu().numpy())
+                gt = debugger.gen_colormap(
+                    batch['hm'][i].detach().cpu().numpy())
                 debugger.add_blend_img(img, pred, 'hm_pred')
                 debugger.add_blend_img(img, gt, 'hm_gt')
-            debugger.add_car_masks(img, dets_pred[0], car_model, c, s, calib, opt, '3d_pred')
-            debugger.add_car_masks(img, dets_gt[0], car_model, c, s, calib, opt, '3d_gt')
+            debugger.add_car_masks(
+                img, dets_pred[0], car_model, c, s, calib, opt, '3d_pred')
+            debugger.add_car_masks(
+                img, dets_gt[0], car_model, c, s, calib, opt, '3d_gt')
             if opt.debug == 4:
                 prefix = '{}_{}_'.format(iter_id, batch['meta']['img_id'][0])
                 debugger.save_all_imgs(opt.debug_dir, prefix=prefix)

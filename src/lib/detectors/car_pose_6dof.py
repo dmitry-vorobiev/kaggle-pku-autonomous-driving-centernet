@@ -11,6 +11,7 @@ import torch
 
 from models.decode import car_pose_6dof_decode
 from models.utils import flip_tensor
+from utils import car_models
 from utils.geometry import create_camera_matrix
 from utils.image import get_affine_transform, pad_img_sides
 from utils.post_process import car_6dof_post_process
@@ -23,6 +24,9 @@ class CarPose6DoFDetector(BaseDetector):
     def __init__(self, opt):
         super(CarPose6DoFDetector, self).__init__(opt)
         self.calib = create_camera_matrix()
+
+    def set_models(self, models_3D):
+        self.models = models_3D
 
     def pre_process(self, image, scale, calib=None):
         if self.opt.img_bottom_half:
@@ -43,14 +47,13 @@ class CarPose6DoFDetector(BaseDetector):
             flags=cv2.INTER_LINEAR)
         inp_image = (inp_image.astype(np.float32) / 255.)
         inp_image = (inp_image - self.mean) / self.std
-        images = inp_image.transpose(2, 0, 1)[np.newaxis, ...]
-
+        inp_image = inp_image.transpose(2, 0, 1)
         if self.opt.pad_img_ratio > 0:
             inp_image = pad_img_sides(inp_image, self.opt.pad_img_ratio)
 
         calib = np.array(calib, dtype=np.float32) if calib is not None \
                 else self.calib
-        images = torch.from_numpy(images)
+        images = torch.from_numpy(inp_image[np.newaxis, ...])
         meta = {'c': c, 's': s, 
                 'out_height': inp_height // self.opt.down_ratio, 
                 'out_width': inp_width // self.opt.down_ratio,
@@ -86,29 +89,27 @@ class CarPose6DoFDetector(BaseDetector):
     def merge_outputs(self, detections):
         results = detections[0]
         for j in range(1, self.num_classes + 1):
-            if len(results[j] > 0):
+            if len(results[j]) > 0:
                 keep_inds = (results[j][:, -1] > self.opt.peak_thresh)
                 results[j] = results[j][keep_inds]
         return results
 
-    def debug(self, debugger, images, dets, output, scale=1):
-        # TODO: debug
-        raise NotImplementedError
+    def debug(self, debugger, images, dets, output, meta, scale=1):
         dets = dets.detach().cpu().numpy()
+        dets = car_6dof_post_process(
+            dets.copy(), [meta['c']], [meta['s']], [meta['calib']], 
+            self.opt)
         img = images[0].detach().cpu().numpy().transpose(1, 2, 0)
         img = ((img * self.std + self.mean) * 255).astype(np.uint8)
-        pred = debugger.gen_colormap(output['hm'][0].detach().cpu().numpy())
-        debugger.add_blend_img(img, pred, 'pred_hm')
-        debugger.add_ct_detection(
-            img, dets[0], show_box=self.opt.reg_bbox, 
-            center_thresh=self.opt.vis_thresh, img_id='det_pred')
+        car_name = car_models.models[0].name
+        car_model = self.models[car_name]
+        if self.opt.debug_gen_hm:
+            pred = debugger.gen_colormap(
+                output['hm'][0].detach().cpu().numpy())
+            debugger.add_blend_img(img, pred, 'pred_hm')
+        debugger.add_car_masks(
+            img, dets[0], car_model, [meta['c']], [meta['s']], 
+            [meta['calib']], self.opt, '3d_pred')
   
     def show_results(self, debugger, image, results):
-        # TODO: vis
-        raise NotImplementedError
-        debugger.add_3d_detection(
-            image, results, self.this_calib,
-            center_thresh=self.opt.vis_thresh, img_id='add_pred')
-        debugger.add_bird_view(
-            results, center_thresh=self.opt.vis_thresh, img_id='bird_pred')
         debugger.show_all_imgs(pause=self.pause)

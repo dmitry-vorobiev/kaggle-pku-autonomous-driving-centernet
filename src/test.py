@@ -17,6 +17,7 @@ from opts import opts
 from logger import Logger
 from utils.utils import AverageMeter
 from datasets.dataset_factory import dataset_factory
+from detectors.car_pose_6dof import CarPose6DoFDetector
 from detectors.detector_factory import detector_factory
 
 class PrefetchDataset(torch.utils.data.Dataset):
@@ -104,8 +105,12 @@ def test(opt):
   dataset = Dataset(opt, split)
   detector = Detector(opt)
 
+  if isinstance(detector, CarPose6DoFDetector):
+    # pass loaded 3D models for debug visualisations
+    detector.set_models(dataset.models)
+
   results = {}
-  num_iters = len(dataset)
+  num_iters = 5 # len(dataset)
   bar = Bar('{}'.format(opt.exp_id), max=num_iters)
   time_stats = ['tot', 'load', 'pre', 'net', 'dec', 'post', 'merge']
   avg_time_stats = {t: AverageMeter() for t in time_stats}
@@ -114,14 +119,16 @@ def test(opt):
 
     if opt.task == 'car_pose_6dof':
       img_path = os.path.join(dataset.img_dir, img_id+'.jpg')
-      ret = detector.run(img_path, dataset.calib)
+      ret = detector.run(img_path, img_id, dataset.calib)
     else:
       img_info = dataset.coco.loadImgs(ids=[img_id])[0]
+      img_info['file_name']
       img_path = os.path.join(dataset.img_dir, img_info['file_name'])
+      img_name = img_info['file_name'][:-4]
       if opt.task == 'ddd':
-        ret = detector.run(img_path, img_info['calib'])
+        ret = detector.run(img_path, img_name, img_info['calib'])
       else:
-        ret = detector.run(img_path)
+        ret = detector.run(img_path, img_name)
     
     results[img_id] = ret['results']
 

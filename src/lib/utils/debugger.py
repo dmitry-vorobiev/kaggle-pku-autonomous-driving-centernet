@@ -116,37 +116,6 @@ class Debugger(object):
       color_map = np.maximum(color_map, (resized * cl).astype(np.uint8))
     return color_map
     '''
-
-  def add_car_masks(self, img, dets, model_3D, c, s, calib, opt, img_id='car'):
-    img = np.copy(img)
-    for j in range(1, opt.num_classes + 1):
-      keep_inds = (dets[j][:, -1] > opt.center_thresh)
-      det_cars = dets[j][keep_inds]
-      for k in range(len(det_cars)):
-        rot_eul = np.copy(det_cars[k,:3])
-        loc = np.copy(det_cars[k,3:6])
-        rmat = euler_angles_to_rotation_matrix(rot_eul).T
-        rvect, _ = cv2.Rodrigues(rmat)
-        # TODO: there should be different models
-        verts = np.float32(model_3D['vertices'])
-        cam_mx = calib[0][:,:3]
-        pts_2d, jac = cv2.projectPoints(
-          verts, rvect, loc, cam_mx, distCoeffs=None)
-        pts_2d = np.int32(pts_2d).reshape(-1, 2)
-        # TODO: read orig img shape value from somewhere
-        if opt.pad_img_ratio > 0:
-          x_offset = int(3384 * opt.pad_img_ratio / 2)
-          pts_2d[:,0] += x_offset
-        if opt.img_bottom_half:
-          y_offset = 2710 // 2
-          pts_2d[:,1] -= y_offset
-        trans = get_affine_transform(c[0], s[0], 0, (opt.input_w, opt.input_h))
-        pts_2d = affine_transform_pts(pts_2d, trans)
-        for face in model_3D['faces'] - 1:
-          pts = np.array([[pts_2d[idx, 0], pts_2d[idx, 1]] for idx in face], np.int32)
-          pts = pts.reshape((-1, 1, 2))
-          cv2.drawContours(img[:,:,0], [pts], 0, 255, -1)
-    self.imgs[img_id] = img
   
   def gen_colormap(self, img, output_res=None):
     img = img.copy()
@@ -362,6 +331,39 @@ class Debugger(object):
             box_3d = compute_box_3d(dim, loc, rot_y)
             box_2d = project_to_image(box_3d, calib)
             self.imgs[img_id] = draw_box_3d(self.imgs[img_id], box_2d, cl)
+
+  def add_car_masks(self, img, dets, model_3D, c, s, calib, opt, img_id='car'):
+    img = np.copy(img)
+    for j in range(1, opt.num_classes + 1):
+      if len(dets[j]) == 0:
+        continue
+      keep_inds = (dets[j][:, -1] > opt.vis_thresh)
+      det_cars = dets[j][keep_inds]
+      for k in range(len(det_cars)):
+        rot_eul = np.copy(det_cars[k,:3])
+        loc = np.copy(det_cars[k,3:6])
+        rmat = euler_angles_to_rotation_matrix(rot_eul).T
+        rvect, _ = cv2.Rodrigues(rmat)
+        # TODO: there should be different models
+        verts = np.float32(model_3D['vertices'])
+        cam_mx = calib[0][:,:3]
+        pts_2d, jac = cv2.projectPoints(
+          verts, rvect, loc, cam_mx, distCoeffs=None)
+        pts_2d = np.int32(pts_2d).reshape(-1, 2)
+        # TODO: read orig img shape value from somewhere
+        if opt.pad_img_ratio > 0:
+          x_offset = int(3384 * opt.pad_img_ratio / 2)
+          pts_2d[:,0] += x_offset
+        if opt.img_bottom_half:
+          y_offset = 2710 // 2
+          pts_2d[:,1] -= y_offset
+        trans = get_affine_transform(c[0], s[0], 0, (opt.input_w, opt.input_h))
+        pts_2d = affine_transform_pts(pts_2d, trans)
+        for face in model_3D['faces'] - 1:
+          pts = np.array([[pts_2d[idx, 0], pts_2d[idx, 1]] for idx in face], np.int32)
+          pts = pts.reshape((-1, 1, 2))
+          cv2.drawContours(img[:,:,0], [pts], 0, 255, -1)
+    self.imgs[img_id] = img
 
   def compose_vis_add(
     self, img_path, dets, calib,

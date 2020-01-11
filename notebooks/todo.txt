@@ -10,7 +10,6 @@
 11. rotation shape similarity ?
 12. smooth l1 for rotation/translation ?
 13. try other pretrained weights
-14. add 3D models debug visualisations
 15. calc correct image stats from dataset
 
 Strange boxes:
