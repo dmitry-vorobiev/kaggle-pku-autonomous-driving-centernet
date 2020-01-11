@@ -71,7 +71,8 @@ class KaggleCars(data.Dataset):
         images = []
         ignore = set()
         if self.split == 'test':
-            images = [x[:-4] for x in os.listdir(self.img_dir)]
+            df = pd.read_csv(os.path.join(self.data_dir, 'sample_submission.csv'))
+            images = df['ImageId'].values.tolist()
         else:
             images = self._read_split_file(self.split)
             if self.split == 'train' and with_valid:
@@ -127,6 +128,7 @@ class KaggleCars(data.Dataset):
                     pose_str = ' '.join(pose)
                     preds.append(pose_str)
             df.loc[i, 'PredictionString'] = ' '.join(preds)
+        df['PredictionString'].fillna('', inplace=True)
         out_path = os.path.join(results_dir, 'preds.csv')
         df.to_csv(out_path, index=False)
 

@@ -12,7 +12,7 @@ import time
 from progress.bar import Bar
 import torch
 
-from external.nms import soft_nms
+# from external.nms import soft_nms
 from opts import opts
 from logger import Logger
 from utils.utils import AverageMeter
@@ -22,23 +22,35 @@ from detectors.detector_factory import detector_factory
 class PrefetchDataset(torch.utils.data.Dataset):
   def __init__(self, opt, dataset, pre_process_func):
     self.images = dataset.images
-    self.load_image_func = dataset.coco.loadImgs
     self.img_dir = dataset.img_dir
     self.pre_process_func = pre_process_func
     self.opt = opt
+    if opt.task == 'car_pose_6dof':
+      self.calib = dataset.calib
+    else:
+      self.load_image_func = dataset.coco.loadImgs
   
   def __getitem__(self, index):
     img_id = self.images[index]
-    img_info = self.load_image_func(ids=[img_id])[0]
-    img_path = os.path.join(self.img_dir, img_info['file_name'])
-    image = cv2.imread(img_path)
-    images, meta = {}, {}
-    for scale in opt.test_scales:
-      if opt.task == 'ddd':
+    if opt.task == 'car_pose_6dof':
+      img_path = os.path.join(self.img_dir, img_id+'.jpg')
+      image = cv2.imread(img_path)
+      images, meta = {}, {}
+      for scale in opt.test_scales:
         images[scale], meta[scale] = self.pre_process_func(
-          image, scale, img_info['calib'])
-      else:
-        images[scale], meta[scale] = self.pre_process_func(image, scale)
+              image, scale, self.calib)
+    else:
+      img_info = self.load_image_func(ids=[img_id])[0]
+      img_path = os.path.join(self.img_dir, img_info['file_name'])
+      image = cv2.imread(img_path)
+      images, meta = {}, {}
+      for scale in opt.test_scales:
+        if opt.task == 'ddd':
+          images[scale], meta[scale] = self.pre_process_func(
+            image, scale, img_info['calib'])
+        else:
+          images[scale], meta[scale] = self.pre_process_func(
+            image, scale)
     return img_id, {'images': images, 'image': image, 'meta': meta}
 
   def __len__(self):
@@ -99,13 +111,17 @@ def test(opt):
   avg_time_stats = {t: AverageMeter() for t in time_stats}
   for ind in range(num_iters):
     img_id = dataset.images[ind]
-    img_info = dataset.coco.loadImgs(ids=[img_id])[0]
-    img_path = os.path.join(dataset.img_dir, img_info['file_name'])
 
-    if opt.task == 'ddd':
-      ret = detector.run(img_path, img_info['calib'])
+    if opt.task == 'car_pose_6dof':
+      img_path = os.path.join(dataset.img_dir, img_id+'.jpg')
+      ret = detector.run(img_path, dataset.calib)
     else:
-      ret = detector.run(img_path)
+      img_info = dataset.coco.loadImgs(ids=[img_id])[0]
+      img_path = os.path.join(dataset.img_dir, img_info['file_name'])
+      if opt.task == 'ddd':
+        ret = detector.run(img_path, img_info['calib'])
+      else:
+        ret = detector.run(img_path)
     
     results[img_id] = ret['results']
 
