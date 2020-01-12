@@ -18,14 +18,16 @@ class CarPose6DoFDataset(data.Dataset):
         pad_w_pct = self.opt.pad_img_ratio
         num_classes = self.opt.num_classes
         calib = self.calib
-
+        
+        # store all 2D point shifts before any resize
+        xy_off = np.array([0, 0])
         img_id = self.images[index]
         img_path = os.path.join(self.img_dir, img_id+'.jpg')
         img = cv2.imread(img_path)
-        x_offset = 0
         if self.opt.img_bottom_half:
-            x_offset = img.shape[0] // 2
-            img = img[x_offset:]
+            half_h = img.shape[0] // 2
+            img = img[half_h:]
+            xy_off[1] -= half_h
 
         height, width = img.shape[0], img.shape[1]
         c = np.array([width / 2., height / 2.])
@@ -69,6 +71,7 @@ class CarPose6DoFDataset(data.Dataset):
         if pad_w_pct > 0:
             inp = pad_img_sides(inp, pad_w_pct)
             hm = pad_img_sides(hm, pad_w_pct)
+            xy_off[0] += int(width * pad_w_pct / 2)
 
         anns = self.anns[index]
         num_objs = min(len(anns), self.max_objs)
@@ -80,17 +83,15 @@ class CarPose6DoFDataset(data.Dataset):
             ann = anns[k]
             cls_id = 0  # ann['car_id']
             ct = proj_point(ann['location'], calib)
+            rot_eul = np.copy(ann['rotation'])
             bbox = ann['bbox']
             if flipped:
-                ct[0] = width - ct[0] - 1
-                bbox[[0, 2]] = width - bbox[[2, 0]] - 1
-            if pad_w_pct > 0:
-                y_offset = int(width * pad_w_pct / 2)
-                ct[0] += y_offset
-                bbox[[0, 2]] += y_offset
-            if self.opt.img_bottom_half:
-                ct[1] -= x_offset
-                bbox[[1, 3]] -= x_offset
+                ct[0] = width-1 - ct[0]
+                bbox[[0, 2]] = width-1 - bbox[[2, 0]]
+                rot[[1,2]] = -rot[[1,2]]
+            ct += xy_off
+            bbox += np.hstack([xy_off, xy_off])
+
             ct = affine_transform(ct, trans_output)
             ct0 = np.copy(ct)
             ct[0] = np.clip(ct[0], 0, hm.shape[2] - 1)
@@ -108,7 +109,7 @@ class CarPose6DoFDataset(data.Dataset):
                 draw_gaussian(hm[0], ct, radius)
 
                 wh[k] = 1. * w, 1. * h
-                q = euler_angles_to_quaternions(ann['rotation'])[0]
+                q = euler_angles_to_quaternions(rot_eul)[0]
                 q = quaternion_upper_hemispher(q)
                 rot[k] = q
                 dep[k] = ann['location'][-1]
