@@ -18,6 +18,19 @@ def parse_annot_str(s):
     return out
 
 
+def parse_pred_str(s):
+    cars = np.array(s.split()).reshape([-1, 7])
+    out = []
+    for car in cars:
+        car = {
+            'rotation': car[0:3].astype(np.float64),
+            'location': car[3:6].astype(np.float64),
+            'score': car[-1].astype(np.float64),
+        }
+        out.append(car)
+    return out
+
+
 def load_car_models(model_dir):
     """Load all the car models"""
     car_models_all = OrderedDict([])

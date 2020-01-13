@@ -2,19 +2,18 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import json
-import math
 import os
 import cv2
 import numpy as np
 import pandas as pd
 import torch
 import torch.utils.data as data
-from collections import OrderedDict
+from sklearn.metrics import average_precision_score
 
 from utils import car_models
 from utils.geometry import calc_bbox, create_camera_matrix
-from utils.kaggle_cars_utils import load_car_models, parse_annot_str
+from utils.kaggle_cars_utils import load_car_models, parse_annot_str, parse_pred_str
+from utils.kaggle_metric import rot_dist, trans_dist
 
 class KaggleCars(data.Dataset):
     num_classes = 1
@@ -132,5 +131,63 @@ class KaggleCars(data.Dataset):
         out_path = os.path.join(results_dir, 'predictions.csv')
         df.to_csv(out_path, index=False)
 
+    def calc_metric(self, save_dir):
+        train_df = pd.read_csv(os.path.join(self.data_dir, 'train.csv'))
+        pred_df = pd.read_csv(os.path.join(save_dir, 'results', 'predictions.csv'))
+
+        max_tr_dist = 10**10
+        thresh_trans = [0.1, 0.09, 0.08, 0.07, 0.06, 0.05, 0.04, 0.03, 0.02, 0.01]
+        thresh_rot = [50, 45, 40, 35, 30, 25, 20, 15, 10, 5]
+        metrics = []
+
+        for i_thresh in range(10):
+            keep_gt = False
+            thresh_trans_dist = thresh_trans[i_thresh]
+            thresh_rot_dist = thresh_rot[i_thresh]
+
+            results, scores = [], []
+            for i_img in range(len(pred_df)):
+                img_id = pred_df.loc[i_img, 'ImageId']
+                gt = train_df.loc[train_df['ImageId'] == img_id, 'PredictionString'].values[0]
+                gt = parse_annot_str(str(gt))
+                pred = pred_df.loc[i_img, 'PredictionString']
+                pred = parse_pred_str(pred)
+                    
+                for pred_car in sorted(pred, key=lambda x: x['score'], reverse=True):
+                    # find nearest GT
+                    min_tr_dist = max_tr_dist
+                    min_idx = -1
+                    gt_idxs = list(range(len(gt)))
+                    for i_gt in gt_idxs:
+                        gt_car = gt[i_gt]
+                        tr_dist = trans_dist(pred_car['location'], gt_car['location'])
+                        if tr_dist < min_tr_dist:
+                            min_tr_dist = tr_dist
+                            min_rt_dist = rot_dist(pred_car['rotation'], gt_car['rotation'])
+                            min_idx = i_gt
+                    # set the result
+                    if min_tr_dist < thresh_trans_dist and min_rt_dist < thresh_rot_dist:
+                        if not keep_gt and min_idx > -1:
+                            gt.pop(min_idx)
+                        results.append(1)
+                    else:
+                        results.append(0)
+                    scores.append(pred_car['score'])
+
+            if np.sum(results) > 0:
+                n_gt = sum([len(cars) for cars in self.anns])
+                n_tp = np.sum(results)
+                recall = n_tp / n_gt
+                ap = average_precision_score(results, scores) * recall
+            else:
+                ap = 0 # maybe mean value ?
+            metrics.append(ap)
+            print('thresh {}: rot: {}, trans: {}, AP: {}'.format(
+                i_thresh, thresh_rot_dist, thresh_trans_dist, ap))
+
+        mAP = np.mean(metrics)
+        print('mean AP:', mAP)
+
     def run_eval(self, results, save_dir):
         self.save_results(results, save_dir)
+        self.calc_metric(save_dir)
