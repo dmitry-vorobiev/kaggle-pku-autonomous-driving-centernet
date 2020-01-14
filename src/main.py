@@ -11,10 +11,21 @@ import torch.utils.data
 from opts import opts
 from models.model import create_model, load_model, save_model
 from models.data_parallel import DataParallel
+from models.optim.swa import SWA
 from logger import Logger
 from datasets.dataset_factory import get_dataset
 from trains.train_factory import train_factory
-from trains.car_pose_6dof import CarPose6DoFTrainer
+
+
+def create_optimizer(model, opt):
+  optimizer = torch.optim.Adam(model.parameters(), opt.lr)
+  if opt.use_swa:
+    optimizer = SWA(optimizer, 
+                    swa_start=opt.swa_start, 
+                    swa_freq=opt.swa_freq, 
+                    swa_lr=opt.swa_lr)
+  return optimizer
+
 
 
 def main(opt):
@@ -31,7 +42,7 @@ def main(opt):
   
   print('Creating model...')
   model = create_model(opt.arch, opt.heads, opt.head_conv)
-  optimizer = torch.optim.Adam(model.parameters(), opt.lr)
+  optimizer = create_optimizer(model, opt)
   start_epoch = 0
   if opt.load_model != '':
     model, optimizer, start_epoch = load_model(
@@ -51,7 +62,7 @@ def main(opt):
       pin_memory=True
   )
 
-  if isinstance(trainer, CarPose6DoFTrainer):
+  if opt.task == 'car_pose_6dof':
     # pass loaded 3D models for debug visualisations
     trainer.set_models(val_dataset.models)
 
@@ -74,6 +85,10 @@ def main(opt):
   for epoch in range(start_epoch + 1, opt.num_epochs + 1):
     mark = epoch if opt.save_all else 'last'
     log_dict_train, _ = trainer.train(epoch, train_loader)
+    apply_swa = opt.use_swa and opt.swa_start >= epoch * len(train_loader)
+    if apply_swa: 
+      # swap to averaged weights for save and eval
+      optimizer.swap_swa_sgd()
     logger.write('epoch: {} |'.format(epoch))
     for k, v in log_dict_train.items():
       logger.scalar_summary('train_{}'.format(k), v, epoch)
@@ -101,6 +116,9 @@ def main(opt):
       print('Drop LR to', lr)
       for param_group in optimizer.param_groups:
           param_group['lr'] = lr
+    if apply_swa:
+      # swap back to train
+      optimizer.swap_swa_sgd()
   logger.close()
 
 if __name__ == '__main__':

@@ -17,7 +17,6 @@ from opts import opts
 from logger import Logger
 from utils.utils import AverageMeter
 from datasets.dataset_factory import dataset_factory
-from detectors.car_pose_6dof import CarPose6DoFDetector
 from detectors.detector_factory import detector_factory
 
 class PrefetchDataset(torch.utils.data.Dataset):
@@ -105,7 +104,7 @@ def test(opt):
   dataset = Dataset(opt, split)
   detector = Detector(opt)
 
-  if isinstance(detector, CarPose6DoFDetector):
+  if opt.task == 'car_pose_6dof':
     # pass loaded 3D models for debug visualisations
     detector.set_models(dataset.models)
 
