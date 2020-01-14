@@ -102,6 +102,15 @@ class opts(object):
     self.parser.add_argument('--trainval', action='store_true',
                              help='include validation in training and '
                                   'test on test set')
+    # optimizer
+    self.parser.add_argument('--use_swa', action='store_true',
+                             help='apply SWA to base optimizer')
+    self.parser.add_argument('--swa_start', type=int, default=1000,
+                             help='number of steps before starting to apply SWA')
+    self.parser.add_argument('--swa_freq', type=int, default=10,
+                             help='number of steps between subsequent updates')
+    self.parser.add_argument('--swa_lr', type=float, 
+                             help='use different lr while applying SWA')
 
     # test
     self.parser.add_argument('--flip_test', action='store_true',
