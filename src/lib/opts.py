@@ -57,9 +57,11 @@ class opts(object):
     self.parser.add_argument('--debugger_theme', default='white', 
                              choices=['white', 'black'])
     # car_pose_6dof                         
-    self.parser.add_argument('--debug_gen_hm', action='store_true', 
+    self.parser.add_argument('--debug_heatmap', action='store_true', 
                              help='generate heatmaps in debug output')
-    
+    self.parser.add_argument('--vis_car_style', default='wire',
+                             choices=['mask', 'wire'], 
+                             help='style of visualisation')
     # model
     self.parser.add_argument('--arch', default='dla_34', 
                              help='model architecture. Currently tested'

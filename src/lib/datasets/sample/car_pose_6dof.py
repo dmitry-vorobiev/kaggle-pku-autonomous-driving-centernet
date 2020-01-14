@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 import torch.utils.data as data
 
-from utils.geometry import create_camera_matrix, euler_angles_to_rotation_matrix, euler_angles_to_quaternions, proj_point, quaternion_upper_hemispher
+from utils.geometry import create_camera_matrix, euler_angles_to_rotation_matrix, euler_angles_to_quaternions, proj_point, quaternion_upper_hemispher, rotate
 from utils.image import get_affine_transform, affine_transform, gaussian_radius, draw_umich_gaussian, draw_msra_gaussian, pad_img_sides
 
 
@@ -18,7 +18,7 @@ class CarPose6DoFDataset(data.Dataset):
         pad_w_pct = self.opt.pad_img_ratio
         num_classes = self.opt.num_classes
         calib = self.calib
-        
+
         # store all 2D point shifts before any resize
         xy_off = np.array([0, 0])
         img_id = self.images[index]
@@ -88,7 +88,7 @@ class CarPose6DoFDataset(data.Dataset):
             if flipped:
                 ct[0] = width-1 - ct[0]
                 bbox[[0, 2]] = width-1 - bbox[[2, 0]]
-                rot[[1,2]] = -rot[[1,2]]
+                rot_eul[[1, 2]] = -rot_eul[[1, 2]]
             ct += xy_off
             bbox += np.hstack([xy_off, xy_off])
 
@@ -109,6 +109,8 @@ class CarPose6DoFDataset(data.Dataset):
                 draw_gaussian(hm[0], ct, radius)
 
                 wh[k] = 1. * w, 1. * h
+                rot_eul[1] = rotate(rot_eul[1], np.pi/2)
+                rot_eul[2] = rotate(rot_eul[2], np.pi)
                 q = euler_angles_to_quaternions(rot_eul)[0]
                 q = quaternion_upper_hemispher(q)
                 rot[k] = q

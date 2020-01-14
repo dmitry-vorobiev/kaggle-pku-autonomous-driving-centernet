@@ -103,7 +103,7 @@ class CarPose6DoFDetector(BaseDetector):
         img = ((img * self.std + self.mean) * 255).astype(np.uint8)
         car_name = car_models.models[0].name
         car_model = self.models[car_name]
-        if self.opt.debug_gen_hm:
+        if self.opt.debug_heatmap:
             pred = debugger.gen_colormap(
                 output['hm'][0].detach().cpu().numpy())
             debugger.add_blend_img(img, pred, 'pred_hm')

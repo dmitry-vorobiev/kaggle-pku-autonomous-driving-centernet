@@ -362,7 +362,13 @@ class Debugger(object):
         for face in model_3D['faces'] - 1:
           pts = np.array([[pts_2d[idx, 0], pts_2d[idx, 1]] for idx in face], np.int32)
           pts = pts.reshape((-1, 1, 2))
-          cv2.drawContours(img[:,:,0], [pts], 0, 255, -1)
+          if opt.vis_car_style == 'mask':
+            cv2.drawContours(img[:,:,0], [pts], 0, 255, -1)
+          elif opt.vis_car_style == 'wire':
+            cv2.polylines(img[:,:,0], [pts], True, 255)
+          else:
+            print('Unknown visualisation style: %s' % opt.vis_car_style)
+            raise ValueError
     self.imgs[img_id] = img
 
   def compose_vis_add(

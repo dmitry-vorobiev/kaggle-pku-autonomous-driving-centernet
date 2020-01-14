@@ -147,3 +147,9 @@ def quaternion_upper_hemispher(q):
                 print(q)
                 q[3] = 0
     return q
+
+
+def rotate(x, angle):
+    x = x + angle
+    x = x - (x + np.pi) // (2 * np.pi) * 2 * np.pi
+    return x

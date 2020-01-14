@@ -104,7 +104,7 @@ class CarPose6DoFTrainer(BaseTrainer):
                                 theme=opt.debugger_theme)
             img = batch['input'][i].detach().cpu().numpy().transpose(1, 2, 0)
             img = ((img * self.opt.std + self.opt.mean) * 255.).astype(np.uint8)
-            if opt.debug_gen_hm:
+            if opt.debug_heatmap:
                 pred = debugger.gen_colormap(
                     output['hm'][i].detach().cpu().numpy())
                 gt = debugger.gen_colormap(

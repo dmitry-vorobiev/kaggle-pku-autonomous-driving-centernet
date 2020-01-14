@@ -5,7 +5,7 @@ from __future__ import print_function
 import numpy as np
 from .image import transform_preds
 from .ddd_utils import ddd2locrot, unproject_2d_to_3d
-from utils.geometry import quaternion_to_euler_angle
+from utils.geometry import quaternion_to_euler_angle, rotate
 
 
 def get_pred_depth(depth):
@@ -116,6 +116,8 @@ def car_6dof_post_process(dets, c, s, calibs, opt):
             quaternions = quaternions / norm
             rot_eulers = np.vstack(
                 [quaternion_to_euler_angle(q) for q in quaternions])
+            rot_eulers[:,1] = rotate(rot_eulers[:,1], -np.pi/2)
+            rot_eulers[:,2] = rotate(rot_eulers[:,2], -np.pi)
             preds = [rot_eulers, locations]
             if include_wh:
                 wh = transform_preds(
