@@ -190,4 +190,5 @@ class KaggleCars(data.Dataset):
 
     def run_eval(self, results, save_dir):
         self.save_results(results, save_dir)
-        self.calc_metric(save_dir)
+        if self.split == 'val':
+            self.calc_metric(save_dir)
