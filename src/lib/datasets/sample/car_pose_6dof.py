@@ -38,11 +38,10 @@ class CarPose6DoFDataset(data.Dataset):
 
         aug, flipped = False, False
         if self.split == 'train':
-            if np.random.random() < self.opt.aug_shift:
+            if np.random.random() < self.opt.aug_scale:
                 aug = True
-                cf = self.opt.shift
-                c[0] += width * np.clip(np.random.randn()*cf, -2*cf, 2*cf)
-                c[1] += height * np.clip(np.random.randn()*cf, -2*cf, 2*cf)
+                sf = self.opt.scale
+                s = s * np.clip(np.random.randn()*sf + 1, 1 - sf, 1)
             if np.random.random() < self.opt.flip:
                 flipped = True
                 img = img[:, ::-1, :]
@@ -51,6 +50,7 @@ class CarPose6DoFDataset(data.Dataset):
         trans_input = get_affine_transform(c, s, 0, [inp_w, inp_h])
         inp = cv2.warpAffine(
             img, trans_input, (inp_w, inp_h), flags=cv2.INTER_LINEAR)
+        inp = self.tfms(inp)
         inp = (inp.astype(np.float32) / 255.)
         # if self.split == 'train' and not self.opt.no_color_aug:
         #   color_aug(self._data_rng, inp, self._eig_val, self._eig_vec)

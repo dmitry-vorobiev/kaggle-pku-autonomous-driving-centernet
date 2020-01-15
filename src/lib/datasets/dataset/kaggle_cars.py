@@ -12,6 +12,7 @@ from sklearn.metrics import average_precision_score
 
 from utils import car_models
 from utils.geometry import calc_bbox, create_camera_matrix
+from utils.image import car_6dof_pixel_tfms
 from utils.kaggle_cars_utils import load_car_models, parse_annot_str, parse_pred_str
 from utils.kaggle_metric import rot_dist, trans_dist
 
@@ -36,6 +37,7 @@ class KaggleCars(data.Dataset):
             [-0.5832747, 0.00994535, -0.81221408],
             [-0.56089297, 0.71832671, 0.41158938]
         ], dtype=np.float32)
+        self.tfms = car_6dof_pixel_tfms(opt)
         self.split = split
         self.opt = opt
 

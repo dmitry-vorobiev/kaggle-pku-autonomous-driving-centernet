@@ -10,6 +10,7 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
+import albumentations as albu
 import cv2
 import random
 
@@ -249,3 +250,25 @@ def pad_img_sides(img, pad_pct):
     empty = np.ones(empty_shape, dtype=img.dtype) * img.mean(2, keepdims=True)
     img = np.concatenate([empty, img, empty], axis=2)
     return img
+
+
+# Eek_the_Cat
+def car_6dof_pixel_tfms(opt):
+  tfms = []
+  if opt.aug_blur > 0:
+    tfms.append(albu.GaussianBlur(p=opt.aug_blur))
+  if opt.aug_brightness_contrast > 0:
+    tfms.append(albu.RandomBrightnessContrast(
+      p=opt.aug_brightness_contrast, 
+      brightness_limit=opt.brightness_limit, 
+      contrast_limit=opt.contrast_limit))
+  if opt.aug_gamma > 0:
+    tfm = albu.OneOf([
+      albu.RandomGamma(p=1),
+      albu.HueSaturationValue(p=1),
+    ], p=opt.aug_gamma)
+    tfms.append(tfm)
+  tfms = albu.Compose(tfms)
+  def _wrapper(image):
+    return tfms(image=image)['image']
+  return _wrapper

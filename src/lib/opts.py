@@ -172,6 +172,19 @@ class opts(object):
                              help='equaly pad image on left and right ')
     self.parser.add_argument('--aug_shift', type=float, default=0.2,
                              help='probability of applying shift augmentation.')
+    self.parser.add_argument('--aug_scale', type=float, default=0.2,
+                             help='probability of applying scale augmentation.')
+    self.parser.add_argument('--aug_blur', type=float, default=0.2,
+                             help='probability of applying gaussian blur augmentation.')
+    self.parser.add_argument('--aug_brightness_contrast', type=float, default=0.2,
+                             help='probability of applying random '
+                                  'brightness-contrast tfm')
+    self.parser.add_argument('--brightness_limit', type=float, default=0.08,
+                             help='max brightness change')
+    self.parser.add_argument('--contrast_limit', type=float, default=0.08,
+                             help='max contrast change')
+    self.parser.add_argument('--aug_gamma', type=float, default=0.2,
+                             help='probability of applying gamma/hue tfms')
     # loss
     self.parser.add_argument('--mse_loss', action='store_true',
                              help='use mse loss or focal loss to train '
