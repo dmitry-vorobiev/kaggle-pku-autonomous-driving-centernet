@@ -28,7 +28,7 @@ def create_model(arch, heads, head_conv):
   model = get_model(num_layers=num_layers, heads=heads, head_conv=head_conv)
   return model
 
-def load_model(model, model_path, optimizer=None, resume=False, 
+def load_model(model, model_path, optimizer=None, amp=None, resume=False, 
                lr=None, lr_step=None):
   start_epoch = 0
   checkpoint = torch.load(model_path, map_location=lambda storage, loc: storage)
@@ -78,12 +78,15 @@ def load_model(model, model_path, optimizer=None, resume=False,
       print('Resumed optimizer with start lr', start_lr)
     else:
       print('No optimizer parameters in checkpoint.')
+  if amp is not None and resume:
+    if 'amp' in checkpoint:
+      amp.load_state_dict(checkpoint['amp'])
   if optimizer is not None:
-    return model, optimizer, start_epoch
+    return model, optimizer, amp, start_epoch
   else:
     return model
 
-def save_model(path, epoch, model, optimizer=None):
+def save_model(path, epoch, model, optimizer=None, amp=None):
   if isinstance(model, torch.nn.DataParallel):
     state_dict = model.module.state_dict()
   else:
@@ -92,5 +95,7 @@ def save_model(path, epoch, model, optimizer=None):
           'state_dict': state_dict}
   if not (optimizer is None):
     data['optimizer'] = optimizer.state_dict()
+  if not (amp is None):
+    data['amp'] = amp.state_dict()
   torch.save(data, path)
 

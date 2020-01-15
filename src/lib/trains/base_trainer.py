@@ -42,16 +42,18 @@ class BaseTrainer(object):
           state[k] = v.to(device=device, non_blocking=True)
 
   def run_epoch(self, phase, epoch, data_loader):
+    opt = self.opt
     model_with_loss = self.model_with_loss
     if phase == 'train':
       model_with_loss.train()
     else:
-      if len(self.opt.gpus) > 1:
+      if len(opt.gpus) > 1:
         model_with_loss = self.model_with_loss.module
       model_with_loss.eval()
       torch.cuda.empty_cache()
+    if opt.mixed_precision:
+      from apex import amp
 
-    opt = self.opt
     results = {}
     data_time, batch_time = AverageMeter(), AverageMeter()
     avg_loss_stats = {l: AverageMeter() for l in self.loss_stats}
@@ -70,7 +72,11 @@ class BaseTrainer(object):
       loss = loss.mean()
       if phase == 'train':
         self.optimizer.zero_grad()
-        loss.backward()
+        if opt.mixed_precision:
+          with amp.scale_loss(loss, self.optimizer) as scaled_loss:
+            scaled_loss.backward()
+        else:
+          loss.backward()
         self.optimizer.step()
       batch_time.update(time.time() - end)
       end = time.time()

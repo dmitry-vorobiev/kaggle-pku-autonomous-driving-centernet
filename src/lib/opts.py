@@ -112,7 +112,14 @@ class opts(object):
                              help='number of steps between subsequent updates')
     self.parser.add_argument('--swa_lr', type=float, 
                              help='use different lr while applying SWA')
-
+    self.parser.add_argument('--mixed_precision', action='store_true',
+                             help='enables automatic mixed precision ' 
+                                  '(NVIDIA Apex amp).')
+    self.parser.add_argument('--opt_level', default='O1',
+                             help='amp optimization level',
+                             choices=['O0', 'O1', 'O2', 'O3'])
+    self.parser.add_argument('--max_loss_scale', type=float, default=2.**24,
+                             help='amp max loss scale')
     # test
     self.parser.add_argument('--flip_test', action='store_true',
                              help='flip data augmentation.')
