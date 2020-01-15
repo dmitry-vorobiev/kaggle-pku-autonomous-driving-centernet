@@ -8,7 +8,7 @@ import numpy as np
 import torch.utils.data as data
 
 from utils.geometry import create_camera_matrix, euler_angles_to_rotation_matrix, euler_angles_to_quaternions, proj_point, quaternion_upper_hemispher, rotate
-from utils.image import get_affine_transform, affine_transform, gaussian_radius, draw_umich_gaussian, draw_msra_gaussian, pad_img_sides
+from utils.image import get_affine_transform, affine_transform, gaussian_radius, draw_umich_gaussian, draw_msra_gaussian, pad_img_sides, hflip
 
 
 class CarPose6DoFDataset(data.Dataset):
@@ -44,8 +44,9 @@ class CarPose6DoFDataset(data.Dataset):
                 s = s * np.clip(np.random.randn()*sf + 1, 1 - sf, 1)
             if np.random.random() < self.opt.flip:
                 flipped = True
-                img = img[:, ::-1, :]
-                c[0] = width - c[0] - 1
+                img = hflip(img, calib[0,2])
+                # img = img[:, ::-1, :]
+                c[0] = width-1 - c[0]
 
         trans_input = get_affine_transform(c, s, 0, [inp_w, inp_h])
         inp = cv2.warpAffine(

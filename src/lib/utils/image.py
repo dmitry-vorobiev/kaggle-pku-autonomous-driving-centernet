@@ -272,3 +272,45 @@ def car_6dof_pixel_tfms(opt):
   def _wrapper(image):
     return tfms(image=image)['image']
   return _wrapper
+
+
+def hflip(img, cx):
+    """
+    https://www.kaggle.com/gebbissimo/correct-horizontal-flipping-during-augmentation
+    """
+    # determine line for flipping rounded to 0.5 pixel
+    cx_rounded = np.round(cx * 2).astype(np.int)
+    u_flip = cx_rounded / 2
+
+    # determine new width
+    height, width, nchannels = img.shape
+    if cx_rounded % 2 == 1:
+        # if flipping line lies between two pixels...
+        width_left = np.ceil(u_flip)
+        width_right = np.floor(width - u_flip)
+        width_new = 2 * max(width_left, width_right)
+        pad_left = width_new / 2 - width_left
+        pad_right = width_new / 2 - width_right
+    else:
+        # if flipping line lies at a pixel...
+        width_left = np.round(u_flip)
+        width_right = np.round(width - u_flip - 1)
+        width_new = 2 * max(width_left, width_right) + 1
+        pad_left = (width_new - 1) / 2 - width_left
+        pad_right = (width_new - 1) / 2 - width_right
+
+    # create new image and flip horizontally
+    bg = img.mean(1, keepdims=True).astype(img.dtype)
+    bg_left = np.repeat(bg, pad_left, axis=1)
+    bg_right = np.repeat(bg, pad_right, axis=1)
+    img_padded = np.hstack((bg_left, img, bg_right))
+    img_padded_flipped = img_padded[:, ::-1, :]
+
+    # crop back to org size s.t. cx=const
+    dim_right = width_new-pad_right
+    img_cropped = img_padded_flipped[:,
+                  pad_left.astype(np.int):dim_right.astype(np.int)
+                  :]
+    width_cropped = img_cropped.shape[1]
+    assert width_cropped == width, "width changed during flipping ?!"
+    return img_cropped
