@@ -46,14 +46,22 @@ def main(opt):
   print('Creating model...')
   model = create_model(opt.arch, opt.heads, opt.head_conv)
   optimizer = create_optimizer(model, opt)
-  start_epoch = 0
-  if opt.load_model != '':
-    model, optimizer, start_epoch = load_model(
-      model, opt.load_model, optimizer, opt.resume, opt.lr, opt.lr_step)
-
   Trainer = train_factory[opt.task]
   trainer = Trainer(opt, model, optimizer)
   trainer.set_device(opt.gpus, opt.chunk_sizes, opt.device)
+  if opt.mixed_precision:
+    from apex import amp
+    model, optimizer = amp.initialize(
+      model, optimizer, opt_level=opt.opt_level, 
+      max_loss_scale=opt.max_loss_scale)
+    print('Using amp with opt level %s...' % opt.opt_level)
+  else:
+    amp = None
+  start_epoch = 0
+  if opt.load_model != '':
+    model, optimizer, amp, start_epoch = load_model(
+      model, opt.load_model, optimizer, amp, 
+      opt.resume, opt.lr, opt.lr_step)
 
   print('Setting up data...')
   val_dataset = Dataset(opt, 'val')
@@ -98,7 +106,7 @@ def main(opt):
       logger.write('{} {:8f} | '.format(k, v))
     if opt.val_intervals > 0 and epoch % opt.val_intervals == 0:
       save_model(os.path.join(opt.save_dir, 'model_{}.pth'.format(mark)), 
-                 epoch, model, optimizer)
+                 epoch, model, optimizer, amp)
       with torch.no_grad():
         log_dict_val, preds = trainer.val(epoch, val_loader)
       for k, v in log_dict_val.items():
@@ -110,11 +118,11 @@ def main(opt):
                    epoch, model)
     else:
       save_model(os.path.join(opt.save_dir, 'model_last.pth'), 
-                 epoch, model, optimizer)
+                 epoch, model, optimizer, amp)
     logger.write('\n')
     if epoch in opt.lr_step:
       save_model(os.path.join(opt.save_dir, 'model_{}.pth'.format(epoch)), 
-                 epoch, model, optimizer)
+                 epoch, model, optimizer, amp)
       lr = opt.lr * (0.1 ** (opt.lr_step.index(epoch) + 1))
       print('Drop LR to', lr)
       for param_group in optimizer.param_groups:
