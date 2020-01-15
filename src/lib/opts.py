@@ -102,7 +102,8 @@ class opts(object):
     self.parser.add_argument('--trainval', action='store_true',
                              help='include validation in training and '
                                   'test on test set')
-    # optimizer
+    self.parser.add_argument('--weight_decay', type=float, default=0, 
+                             help='use AdamW with specified weight decay amount')
     self.parser.add_argument('--use_swa', action='store_true',
                              help='apply SWA to base optimizer')
     self.parser.add_argument('--swa_start', type=int, default=1000,

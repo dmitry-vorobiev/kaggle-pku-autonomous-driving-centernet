@@ -18,14 +18,17 @@ from trains.train_factory import train_factory
 
 
 def create_optimizer(model, opt):
-  optimizer = torch.optim.Adam(model.parameters(), opt.lr)
+  if opt.weight_decay > 0:
+    optimizer = torch.optim.AdamW(model.parameters(), lr=opt.lr, 
+                                  weight_decay=opt.weight_decay)
+  else:
+    optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr)
   if opt.use_swa:
     optimizer = SWA(optimizer, 
                     swa_start=opt.swa_start, 
                     swa_freq=opt.swa_freq, 
                     swa_lr=opt.swa_lr)
   return optimizer
-
 
 
 def main(opt):
