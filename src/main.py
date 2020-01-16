@@ -96,7 +96,7 @@ def main(opt):
   for epoch in range(start_epoch + 1, opt.num_epochs + 1):
     mark = epoch if opt.save_all else 'last'
     log_dict_train, _ = trainer.train(epoch, train_loader)
-    apply_swa = opt.use_swa and opt.swa_start >= epoch * len(train_loader)
+    apply_swa = opt.use_swa and epoch * len(train_loader) > opt.swa_start
     if apply_swa: 
       # swap to averaged weights for save and eval
       optimizer.swap_swa_sgd()
