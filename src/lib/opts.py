@@ -61,9 +61,11 @@ class opts(object):
                              help='generate heatmaps in debug output')
     self.parser.add_argument('--debug_xyz_mask', action='store_true', 
                              help='generate 3D location masks in debug output')
-    self.parser.add_argument('--vis_car_style', default='wire',
+    self.parser.add_argument('--render_cars', action='store_true', 
+                          help='render 3D models of cars')
+    self.parser.add_argument('--render_car_style', default='wire',
                              choices=['mask', 'wire'], 
-                             help='style of visualisation')
+                             help='style of visualisation for 3D render')
     # model
     self.parser.add_argument('--arch', default='dla_34', 
                              help='model architecture. Currently tested'
@@ -222,6 +224,9 @@ class opts(object):
     self.parser.add_argument('--rot_weight', type=float, default=1,
                              help='loss weight for orientation.')
     self.parser.add_argument('--peak_thresh', type=float, default=0.2)
+    # car_pose_6dof
+    self.parser.add_argument('--dlm_weight', type=float, default=1,
+                             help='loss weight for 3D location map')
     
     # task
     # ctdet
@@ -366,6 +371,8 @@ class opts(object):
         opt.heads.update({'wh': 2})
       if opt.reg_offset:
         opt.heads.update({'reg': 2})
+      if opt.xyz_mask:
+        opt.heads.update({'dlm': 3})
     elif opt.task == 'ctdet':
       # assert opt.dataset in ['pascal', 'coco']
       opt.heads = {'hm': opt.num_classes,

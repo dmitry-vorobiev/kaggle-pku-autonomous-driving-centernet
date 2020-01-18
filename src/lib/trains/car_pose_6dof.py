@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 
-from models.losses import FocalLoss, L1Loss, BinRotLoss
+from models.losses import FocalLoss, L1Loss, BinRotLoss, DenseLocL1Loss
 from models.decode import car_pose_6dof_decode
 from models.utils import _sigmoid
 from utils import car_models
@@ -21,15 +21,14 @@ class CarPose6DoFLoss(torch.nn.Module):
         super(CarPose6DoFLoss, self).__init__()
         self.crit = torch.nn.MSELoss() if opt.mse_loss else FocalLoss()
         self.crit_reg = L1Loss()
-        # TODO: another rotation loss
-        self.crit_rot = BinRotLoss()
+        self.crit_dlm = DenseLocL1Loss()
         self.opt = opt
 
     def forward(self, outputs, batch):
         opt = self.opt
 
         hm_loss, dep_loss, rot_loss = 0, 0, 0
-        wh_loss, off_loss = 0, 0
+        wh_loss, off_loss, dlm_loss = 0, 0, 0
         for s in range(opt.num_stacks):
             output = outputs[s]
             output['hm'] = _sigmoid(output['hm'])
@@ -55,13 +54,17 @@ class CarPose6DoFLoss(torch.nn.Module):
             if opt.reg_offset and opt.off_weight > 0:
                 off_loss += self.crit_reg(output['reg'], batch['rot_mask'],
                                           batch['ind'], batch['reg']) / opt.num_stacks
+            if opt.xyz_mask and opt.dlm_weight > 0:
+                dlm_loss += self.crit_dlm(output['dlm'], batch['xyz_mask']) / opt.num_stacks
         loss = (opt.hm_weight * hm_loss + opt.dep_weight * dep_loss +
                 opt.rot_weight * rot_loss + opt.wh_weight * wh_loss +
-                opt.off_weight * off_loss)
+                opt.off_weight * off_loss + opt.dlm_weight * dlm_loss)
 
         loss_stats = {'loss': loss, 'hm_loss': hm_loss, 'dep_loss': dep_loss,
                       'rot_loss': rot_loss, 'wh_loss': wh_loss,
                       'off_loss': off_loss}
+        if opt.xyz_mask:
+            loss_stats.update({'dlm_loss': dlm_loss})
         return loss, loss_stats
 
 
@@ -76,6 +79,8 @@ class CarPose6DoFTrainer(BaseTrainer):
     def _get_losses(self, opt):
         loss_states = ['loss', 'hm_loss', 'dep_loss', 'rot_loss',
                        'wh_loss', 'off_loss']
+        if opt.xyz_mask:
+            loss_states.append('dlm_loss')
         loss = CarPose6DoFLoss(opt)
         return loss_states, loss
 
@@ -111,14 +116,11 @@ class CarPose6DoFTrainer(BaseTrainer):
                     batch['hm'][i].detach().cpu().numpy())
                 debugger.add_blend_img(img, pred, 'hm_pred')
                 debugger.add_blend_img(img, gt, 'hm_gt')
-            if opt.xyz_mask and debug_xyz_mask:
-                mask_gt = debugger.gen_colormap(
-                    batch['xyz_mask'][i].detach().cpu().numpy())
-                debugger.add_blend_img(img, mask_gt, 'x_gt')
-            debugger.add_car_masks(
-                img, dets_pred[0], car_model, c, s, calib, opt, '3d_pred')
-            debugger.add_car_masks(
-                img, dets_gt[0], car_model, c, s, calib, opt, '3d_gt')
+            if opt.render_cars:
+                debugger.render_cars(
+                    img, dets_pred[0], car_model, c, s, calib, opt, '3d_pred')
+                debugger.render_cars(
+                    img, dets_gt[0], car_model, c, s, calib, opt, '3d_gt')
             if opt.debug == 4:
                 prefix = '{}_{}_'.format(iter_id, batch['meta']['img_id'][0])
                 debugger.save_all_imgs(opt.debug_dir, prefix=prefix)

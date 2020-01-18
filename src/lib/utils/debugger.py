@@ -332,7 +332,7 @@ class Debugger(object):
             box_2d = project_to_image(box_3d, calib)
             self.imgs[img_id] = draw_box_3d(self.imgs[img_id], box_2d, cl)
 
-  def add_car_masks(self, img, dets, model_3D, c, s, calib, opt, img_id='car'):
+  def render_cars(self, img, dets, model_3D, c, s, calib, opt, img_id='car'):
     img = np.copy(img)
     for j in range(1, opt.num_classes + 1):
       if len(dets[j]) == 0:
@@ -362,14 +362,27 @@ class Debugger(object):
         for face in model_3D['faces'] - 1:
           pts = np.array([[pts_2d[idx, 0], pts_2d[idx, 1]] for idx in face], np.int32)
           pts = pts.reshape((-1, 1, 2))
-          if opt.vis_car_style == 'mask':
+          if opt.render_car_style == 'mask':
             cv2.drawContours(img[:,:,0], [pts], 0, 255, -1)
-          elif opt.vis_car_style == 'wire':
+          elif opt.render_car_style == 'wire':
             cv2.polylines(img[:,:,0], [pts], True, 255)
           else:
             print('Unknown visualisation style: %s' % opt.vis_car_style)
             raise ValueError
     self.imgs[img_id] = img
+
+  # def loc_mask(self, mask, bg, c, s, opt, img_id='loc_mask'):
+  #   mask = mask / mask.max()
+  #   trans = get_affine_transform(
+  #     c[0], s[0], 0, (opt.input_w, opt.input_h), inv=True)
+  #   mask = cv2.warpAffine(
+  #     mask, trans, (opt.input_w, opt.input_h), flags=cv2.INTER_LINEAR)
+  #   if opt.pad_img_ratio > 0:
+  #     h, w = mask.shape
+  #     mask = mask.reshape(1, h, w)
+  #     mask = pad_img_sides(mask, opt.pad_img_ratio)
+  #     mask = mask.reshape(h, -1)
+  #   self.add_mask(mask, bg, img_id)
 
   def compose_vis_add(
     self, img_path, dets, calib,

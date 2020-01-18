@@ -1,7 +1,7 @@
 cd src
 # train
 python main.py car_pose_6dof --exp_id car_pose_default --dataset kaggle_cars \
- --load_model ../exp/car_pose_6dof/car_pose_default/model_12.pth --resume \
+ --xyz_mask \
  --batch_size 6 --master_batch_size 6 \
  --num_epochs 20 --lr 7e-5 --lr_step 10,15 \
  --use_swa --swa_start 6000 --swa_freq 50 \
@@ -9,5 +9,5 @@ python main.py car_pose_6dof --exp_id car_pose_default --dataset kaggle_cars \
  --aug_blur 0.15 --aug_gamma 0.2 \
  --aug_brightness_contrast 0.3 --brightness_limit 0.08 --contrast_limit 0.08 \
  --center_thresh 0.3 --peak_thresh 0.3 --vis_thresh 0.3 \
- --gpus 1 --debug 4 --test --no_color_aug --xyz_mask --debug_xyz_mask
+ --gpus 1 --debug 0 --no_color_aug --render_cars
 cd ..
