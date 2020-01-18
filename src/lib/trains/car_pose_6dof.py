@@ -23,7 +23,6 @@ class CarPose6DoFLoss(torch.nn.Module):
         self.crit_reg = L1Loss()
         self.crit_dlm = DenseLocL1Loss()
         self.opt = opt
-        self.norm = torch.tensor(opt.norm_xyz)
 
     def forward(self, outputs, batch):
         opt = self.opt
@@ -56,7 +55,7 @@ class CarPose6DoFLoss(torch.nn.Module):
                 off_loss += self.crit_reg(output['reg'], batch['rot_mask'],
                                           batch['ind'], batch['reg']) / opt.num_stacks
             if opt.xyz_mask and opt.dlm_weight > 0:
-                dlm_loss += self.crit_dlm(output['dlm'], batch['xyz_mask'], self.norm) / opt.num_stacks
+                dlm_loss += self.crit_dlm(output['dlm'], batch['xyz_mask']) / opt.num_stacks
         loss = (opt.hm_weight * hm_loss + opt.dep_weight * dep_loss +
                 opt.rot_weight * rot_loss + opt.wh_weight * wh_loss +
                 opt.off_weight * off_loss + opt.dlm_weight * dlm_loss)
