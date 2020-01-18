@@ -2,7 +2,7 @@ import os
 import sys
 import cv2
 import numpy as np
-from progress.bar import Bar
+from multiprocessing import Pool
 
 from opts import opts
 from datasets.dataset_factory import get_dataset
@@ -47,27 +47,32 @@ def create_mask(path, img_anns, models_3D, calib, opt,
     np.savez_compressed(path, [mask])
 
 
-def main(opt):
+def proc(idx):
+    img_id = dataset.images[idx]
+    img_anns = dataset.anns[idx]
+    path = os.path.join(render_dir, img_id)
+    create_mask(
+        path, img_anns, dataset.models, dataset.calib, opt, shape=shape)
+    return img_id
+
+
+if __name__ == '__main__':
+    sys.argv.append('car_pose_6dof')
+    opt = opts().parse()
     opt.trainval = True
+
     render_dir = opt.gen_masks_dir
     if not os.path.isdir(render_dir):
         render_dir = os.path.join(
             opt.data_dir, 'pku-autonomous-driving', 'train_3d_masks')
     if not os.path.isdir(render_dir):
         os.mkdir(render_dir)
-    shape = (2710, 3384)
+
     Dataset = get_dataset('kaggle_cars', 'car_pose_6dof')
     dataset = Dataset(opt, 'train')
+    shape = (2710, 3384)
+    
     n = len(dataset)
-    for i, img_id in enumerate(dataset.images[:20]):
-        path = os.path.join(render_dir, img_id)
-        img_anns = dataset.anns[i]
-        create_mask(
-            path, img_anns, dataset.models, dataset.calib, opt, shape=shape)
+    pool = Pool(processes=opt.num_workers)
+    for i, img_id in enumerate(pool.imap(proc, range(n))):
         print('[%4d / %d] %s' % (i, n, img_id))
-
-
-if __name__ == '__main__':
-    sys.argv.append('car_pose_6dof')
-    opt = opts().parse()
-    main(opt)
