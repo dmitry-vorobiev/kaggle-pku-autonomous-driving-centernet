@@ -9,10 +9,6 @@ from datasets.dataset_factory import get_dataset
 from utils import car_models
 from utils.geometry import affine_to_world_pts, proj_world_pts
 
-
-NORM = [519.834, 689.119, 3502.94]
-
-
 def create_mask(path, img_anns, models_3D, calib, opt,
                 shape=(2710, 3384), 
                 max_objs=100):
@@ -24,6 +20,7 @@ def create_mask(path, img_anns, models_3D, calib, opt,
 
     mask = np.zeros((3, height, width), dtype=np.float32)
     num_objs = min(len(img_anns), max_objs)
+    norms = opt.norm_xyz
     img_anns.sort(key=lambda x: x['location'][2], reverse=True)
 
     for k in range(num_objs):
@@ -41,7 +38,7 @@ def create_mask(path, img_anns, models_3D, calib, opt,
             pts_face_2d = np.int32(pts_2d[face]).reshape((-1, 1, 2))
             pts_face_3d = np.int32(pts_world[face])
             for dim in range(3):
-                v = pts_face_3d[:,dim].mean() / NORM[dim]
+                v = pts_face_3d[:,dim].mean() / norms[dim]
                 cv2.drawContours(mask[dim], [pts_face_2d], 0, v, -1)
 
     np.savez_compressed(path, [mask])

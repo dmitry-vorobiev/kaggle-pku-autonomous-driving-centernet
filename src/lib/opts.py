@@ -176,6 +176,8 @@ class opts(object):
     # car_pose_6dof
     self.parser.add_argument('--xyz_mask', action='store_true',
                              help='use 3D location masks for training')
+    self.parser.add_argument('--xyz_norms', type=str, default='519.834,689.119,3502.94',
+                             help='values to norm/unnorm metric values')
     self.parser.add_argument('--split_dir', default='', 
                              help='path to dir containing train.txt and val.txt'
                                   'split files')
@@ -296,6 +298,7 @@ class opts(object):
     opt.hm_hp = not opt.not_hm_hp
     opt.reg_hp_offset = (not opt.not_reg_hp_offset) and opt.hm_hp
     opt.img_bottom_half = not opt.whole_img
+    opt.norm_xyz = [float(n) for n in opt.xyz_norms.split(',')]
 
     if opt.head_conv == -1: # init default head_conv
       opt.head_conv = 256 if 'dla' in opt.arch else 64
