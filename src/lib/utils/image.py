@@ -237,7 +237,7 @@ def color_aug(data_rng, image, eig_val, eig_vec):
     lighting_(data_rng, image, 0.1, eig_val, eig_vec)
 
 
-def pad_img_sides(img, pad_pct):
+def pad_img_sides(img, pad_pct, fill_zeros=False):
     """ Pad image on left and right
         Input:
             img - image of shape (C, H, W)
@@ -247,7 +247,10 @@ def pad_img_sides(img, pad_pct):
     """
     c, h, w = img.shape
     empty_shape = (c, h, int(w * pad_pct / 2))
-    empty = np.ones(empty_shape, dtype=img.dtype) * img.mean(2, keepdims=True)
+    if fill_zeros:
+      empty = np.zeros(empty_shape, dtype=np.float32) 
+    else:
+      empty = np.ones(empty_shape, dtype=np.float32) * img.mean(2, keepdims=True)
     img = np.concatenate([empty, img, empty], axis=2)
     return img
 

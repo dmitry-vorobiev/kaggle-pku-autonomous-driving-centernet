@@ -111,6 +111,10 @@ class CarPose6DoFTrainer(BaseTrainer):
                     batch['hm'][i].detach().cpu().numpy())
                 debugger.add_blend_img(img, pred, 'hm_pred')
                 debugger.add_blend_img(img, gt, 'hm_gt')
+            if opt.xyz_mask and debug_xyz_mask:
+                mask_gt = debugger.gen_colormap(
+                    batch['xyz_mask'][i].detach().cpu().numpy())
+                debugger.add_blend_img(img, mask_gt, 'x_gt')
             debugger.add_car_masks(
                 img, dets_pred[0], car_model, c, s, calib, opt, '3d_pred')
             debugger.add_car_masks(

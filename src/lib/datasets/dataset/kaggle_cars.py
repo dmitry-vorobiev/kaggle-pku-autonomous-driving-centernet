@@ -37,6 +37,7 @@ class KaggleCars(data.Dataset):
             [-0.5832747, 0.00994535, -0.81221408],
             [-0.56089297, 0.71832671, 0.41158938]
         ], dtype=np.float32)
+        self.loc_norm = [519.834, 689.119, 3502.94] # max for x,y,z center
         self.tfms = car_6dof_pixel_tfms(opt)
         self.split = split
         self.opt = opt

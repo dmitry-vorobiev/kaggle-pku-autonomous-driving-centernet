@@ -59,6 +59,8 @@ class opts(object):
     # car_pose_6dof                         
     self.parser.add_argument('--debug_heatmap', action='store_true', 
                              help='generate heatmaps in debug output')
+    self.parser.add_argument('--debug_xyz_mask', action='store_true', 
+                             help='generate 3D location masks in debug output')
     self.parser.add_argument('--vis_car_style', default='wire',
                              choices=['mask', 'wire'], 
                              help='style of visualisation')
@@ -170,6 +172,8 @@ class opts(object):
                              help='different validation split for kitti: '
                                   '3dop | subcnn')
     # car_pose_6dof
+    self.parser.add_argument('--xyz_mask', action='store_true',
+                             help='use 3D location masks for training')
     self.parser.add_argument('--split_dir', default='', 
                              help='path to dir containing train.txt and val.txt'
                                   'split files')

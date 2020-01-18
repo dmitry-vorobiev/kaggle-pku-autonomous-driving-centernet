@@ -12,6 +12,35 @@ from utils.image import get_affine_transform, affine_transform, gaussian_radius,
 
 
 class CarPose6DoFDataset(data.Dataset):
+    def get_3d_loc_masks_dir(self):
+        render_dir = self.opt.gen_masks_dir
+        if not os.path.isdir(render_dir):
+            render_dir = os.path.join(
+                self.opt.data_dir, 'pku-autonomous-driving', 'train_3d_masks')
+        return render_dir
+
+    def load_3d_loc_mask(self, img_id, resize_fn, flipped=False):
+        render_dir = self.get_3d_loc_masks_dir()
+        path = os.path.join(render_dir, img_id+'.npz')
+        xyz_mask = None
+        with np.load(path) as f:
+            xyz_mask = f['arr_0'][0]
+        if flipped:
+            cars = (xyz_mask != 0).any(0)
+            xyz_mask[0] = np.where(cars, xyz_mask[0].max() - xyz_mask[0], 0)
+        xyz_mask = xyz_mask.transpose(1, 2, 0) # H,W,C
+        if flipped:
+            xyz_mask = hflip(xyz_mask, self.calib[0,2])
+        xyz_mask = cv2.warpAffine(
+            xyz_mask, resize_fn, 
+            (self.opt.output_w, self.opt.output_h), 
+            flags=cv2.INTER_LINEAR)
+        xyz_mask = xyz_mask.transpose(2, 0, 1) # C,H,W
+        if self.opt.pad_img_ratio > 0:
+            xyz_mask = pad_img_sides(
+                xyz_mask, self.opt.pad_img_ratio, fill_zeros=True)
+        return xyz_mask
+
     def __getitem__(self, index):
         inp_w, inp_h = self.opt.input_w, self.opt.input_h
         out_w, out_h = self.opt.output_w, self.opt.output_h
@@ -21,13 +50,15 @@ class CarPose6DoFDataset(data.Dataset):
 
         # store all 2D point shifts before any resize
         xy_off = np.array([0, 0])
+        flipped = self.split == 'train' and np.random.random() < self.opt.flip
+
         img_id = self.images[index]
         img_path = os.path.join(self.img_dir, img_id+'.jpg')
         img = cv2.imread(img_path)
         if self.opt.img_bottom_half:
-            half_h = img.shape[0] // 2
-            img = img[half_h:]
-            xy_off[1] -= half_h
+            y_mid = img.shape[0] // 2
+            img = img[y_mid:]
+            xy_off[1] -= y_mid
 
         height, width = img.shape[0], img.shape[1]
         c = np.array([width / 2., height / 2.])
@@ -36,19 +67,12 @@ class CarPose6DoFDataset(data.Dataset):
         else:
             s = np.array([width, height], dtype=np.int32)
 
-        aug, flipped = False, False
-        if self.split == 'train':
-            if np.random.random() < self.opt.aug_scale:
-                aug = True
-                sf = self.opt.scale
-                s = s * np.clip(np.random.randn()*sf + 1, 1 - sf, 1)
-            if np.random.random() < self.opt.flip:
-                flipped = True
-                img = hflip(img, calib[0,2])
-                # img = img[:, ::-1, :]
-                c[0] = width-1 - c[0]
-
+        if flipped:
+            img = hflip(img, calib[0,2])
+            c[0] = width-1 - c[0]
         trans_input = get_affine_transform(c, s, 0, [inp_w, inp_h])
+        trans_output = get_affine_transform(c, s, 0, [out_w, out_h])
+
         inp = cv2.warpAffine(
             img, trans_input, (inp_w, inp_h), flags=cv2.INTER_LINEAR)
         if self.split == 'train' and not self.opt.no_color_aug:
@@ -65,9 +89,7 @@ class CarPose6DoFDataset(data.Dataset):
         ind = np.zeros((self.max_objs), dtype=np.int64)
         reg_mask = np.zeros((self.max_objs), dtype=np.uint8)
         rot_mask = np.zeros((self.max_objs), dtype=np.uint8)
-        subcls = np.zeros((self.max_objs), dtype=np.uint8)
 
-        trans_output = get_affine_transform(c, s, 0, [out_w, out_h])
         if pad_w_pct > 0:
             inp = pad_img_sides(inp, pad_w_pct)
             hm = pad_img_sides(hm, pad_w_pct)
@@ -81,10 +103,10 @@ class CarPose6DoFDataset(data.Dataset):
         gt_det = []
         for k in range(num_objs):
             ann = anns[k]
-            cls_id = 0  # ann['car_id']
+            cls_id = 0
             ct = proj_point(ann['location'], calib)
             rot_eul = np.copy(ann['rotation'])
-            bbox = ann['bbox']
+            bbox = np.copy(ann['bbox'])
             if flipped:
                 ct[0] = width-1 - ct[0]
                 bbox[[0, 2]] = width-1 - bbox[[2, 0]]
@@ -115,7 +137,7 @@ class CarPose6DoFDataset(data.Dataset):
                 dep[k] = ann['location'][-1]
                 ind[k] = ct_int[1] * hm.shape[2] + ct_int[0]
                 reg[k] = ct0 - ct_int
-                reg_mask[k] = 1 if not aug else 0
+                reg_mask[k] = 1 if not flipped else 0
                 rot_mask[k] = 1
                 # x, y, score, r1-r4, depth, wh?, cls
                 gt_det.append(
@@ -129,6 +151,10 @@ class CarPose6DoFDataset(data.Dataset):
             ret.update({'wh': wh})
         if self.opt.reg_offset:
             ret.update({'reg': reg})
+        if self.opt.xyz_mask:
+            xyz_mask = self.load_3d_loc_mask(
+                img_id, trans_output, flipped) # C,H,W
+            ret.update({'xyz_mask': xyz_mask})
         if self.opt.debug > 0 or not ('train' in self.split):
             gt_det = np.array(gt_det, dtype=np.float32) if len(gt_det) > 0 else \
                 np.zeros((1, 11), dtype=np.float32)
