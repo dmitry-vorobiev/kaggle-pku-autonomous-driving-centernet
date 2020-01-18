@@ -29,11 +29,30 @@ def proj_points(pts_3d, rot_euler, translation, calib):
     return imgpts
 
 
-def calc_bbox(pts_3d, rot_euler, translation, calib):
-    pts_2d = proj_points(pts_3d, rot_euler, translation, calib)
+def affine_to_world_pts(vertices, rot_euler, translation):
+    Rt = np.eye(4)
+    Rt[:3, 3] = translation
+    Rt[:3,:3] = euler_angles_to_rotation_matrix(rot_euler).T
+
+    # increase dim length from 3 -> 4
+    P = np.ones((vertices.shape[0], vertices.shape[1]+1))
+    P[:, :-1] = vertices
+
+    pts_world = Rt[:3,:] @ P.T # 3 x vertices
+    return pts_world
+
+
+def proj_world_pts(pts_world, calib):
+    pts_3d = (calib[:,:3] @ pts_world).T
+    pts_2d = pts_3d[:,:2] / pts_3d[:,2:]
+    return pts_2d
+
+
+def calc_bbox(pts_2d):
+    # pts_2d = proj_points(pts_3d, rot_euler, translation, calib)
     x1, y1, x2, y2 = (pts_2d[:, 0].min(), pts_2d[:, 1].min(),
                       pts_2d[:, 0].max(), pts_2d[:, 1].max())
-    return [x1, y1, x2, y2]
+    return np.array([x1, y1, x2, y2])
 
 
 def euler_angles_to_rotation_matrix(angle):

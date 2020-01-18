@@ -51,10 +51,9 @@ class CarPose6DoFDataset(data.Dataset):
         trans_input = get_affine_transform(c, s, 0, [inp_w, inp_h])
         inp = cv2.warpAffine(
             img, trans_input, (inp_w, inp_h), flags=cv2.INTER_LINEAR)
-        inp = self.tfms(inp)
+        if self.split == 'train' and not self.opt.no_color_aug:
+            inp = self.tfms(inp)
         inp = (inp.astype(np.float32) / 255.)
-        # if self.split == 'train' and not self.opt.no_color_aug:
-        #   color_aug(self._data_rng, inp, self._eig_val, self._eig_vec)
         inp = (inp - self.mean) / self.std
         inp = inp.transpose(2, 0, 1)
 

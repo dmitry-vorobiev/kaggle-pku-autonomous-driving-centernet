@@ -11,7 +11,7 @@ import torch.utils.data as data
 from sklearn.metrics import average_precision_score
 
 from utils import car_models
-from utils.geometry import calc_bbox, create_camera_matrix
+from utils.geometry import calc_bbox, create_camera_matrix, proj_points
 from utils.image import car_6dof_pixel_tfms
 from utils.kaggle_cars_utils import load_car_models, parse_annot_str, parse_pred_str
 from utils.kaggle_metric import rot_dist, trans_dist
@@ -105,8 +105,9 @@ class KaggleCars(data.Dataset):
         for car in cars:
             car_name = car_models.car_id2name[car['car_id']].name
             car_model = models_3D[car_name]
-            bbox = calc_bbox(car_model['vertices'], car['rotation'],
-                             car['location'], self.calib)
+            pts_2d = proj_points(car_model['vertices'], car['rotation'],
+                                 car['location'], self.calib)
+            bbox = calc_bbox(pts_2d)
             car['bbox'] = np.array(bbox)
         return cars
 
