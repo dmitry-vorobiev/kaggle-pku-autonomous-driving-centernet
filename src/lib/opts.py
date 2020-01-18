@@ -101,6 +101,8 @@ class opts(object):
                              help='batch size on the master gpu.')
     self.parser.add_argument('--num_iters', type=int, default=-1,
                              help='default: #samples / batch_size.')
+    self.parser.add_argument('--num_grad_accum', type=int, default=1,
+                             help='number of gradient accumulation steps.')
     self.parser.add_argument('--val_intervals', type=int, default=5,
                              help='number of epochs to run validation.')
     self.parser.add_argument('--trainval', action='store_true',

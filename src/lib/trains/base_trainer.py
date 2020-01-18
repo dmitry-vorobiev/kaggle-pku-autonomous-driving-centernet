@@ -58,26 +58,33 @@ class BaseTrainer(object):
     data_time, batch_time = AverageMeter(), AverageMeter()
     avg_loss_stats = {l: AverageMeter() for l in self.loss_stats}
     num_iters = len(data_loader) if opt.num_iters < 0 else opt.num_iters
+    num_accum = opt.num_grad_accum or 1
     bar = Bar('{}/{}'.format(opt.task, opt.exp_id), max=num_iters)
     end = time.time()
     for iter_id, batch in enumerate(data_loader):
       if iter_id >= num_iters:
         break
       data_time.update(time.time() - end)
+      # [0] 1 [2] 3 [4] 5 [6] 7 [8]
+      # [0] 1 2 [3] 4 5 [6] 7 8 [9]
+      if not iter_id % num_accum:
+        self.optimizer.zero_grad()
 
       for k in batch:
         if k != 'meta':
           batch[k] = batch[k].to(device=opt.device, non_blocking=True)    
       output, loss, loss_stats = model_with_loss(batch)
-      loss = loss.mean()
+      loss = loss.mean() / num_accum
       if phase == 'train':
-        self.optimizer.zero_grad()
         if opt.mixed_precision:
           with amp.scale_loss(loss, self.optimizer) as scaled_loss:
             scaled_loss.backward()
         else:
           loss.backward()
-        self.optimizer.step()
+        # 0 [1] 2 [3] 4 [5] 6 [7] 8
+        # 0 1 [2] 3 4 [5] 6 7 [8] 9
+        if not (iter_id + 1) % num_accum:
+          self.optimizer.step()
       batch_time.update(time.time() - end)
       end = time.time()
 

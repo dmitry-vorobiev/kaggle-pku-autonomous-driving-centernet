@@ -1,8 +1,8 @@
 cd src
 # train
 python main.py car_pose_6dof --exp_id car_pose_default --dataset kaggle_cars \
- --xyz_mask --dlm_weight 0.02 \
- --batch_size 6 --master_batch_size 6 \
+ --xyz_mask --dlm_weight 1 \
+ --batch_size 6 --master_batch_size 6 --num_grad_accum 4 \
  --num_epochs 20 --lr 7e-5 --lr_step 10,15 \
  --use_swa --swa_start 6000 --swa_freq 50 \
  --flip -1 --aug_scale 0.2 --scale 0.15 \
