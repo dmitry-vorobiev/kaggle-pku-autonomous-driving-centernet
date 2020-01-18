@@ -24,7 +24,7 @@ def create_mask(path, img_anns, models_3D, calib, opt,
 
     mask = np.zeros((3, height, width), dtype=np.float32)
     num_objs = min(len(img_anns), max_objs)
-
+    img_anns.sort(key=lambda x: x['location'][2], reverse=True)
 
     for k in range(num_objs):
         ann = img_anns[k]
@@ -48,22 +48,23 @@ def create_mask(path, img_anns, models_3D, calib, opt,
 
 
 def main(opt):
-    render_dir = os.path.join(
-        opt.data_dir, 'pku-autonomous-driving', 'train_3d_masks')
+    opt.trainval = True
+    render_dir = opt.gen_masks_dir
+    if not os.path.isdir(render_dir):
+        render_dir = os.path.join(
+            opt.data_dir, 'pku-autonomous-driving', 'train_3d_masks')
     if not os.path.isdir(render_dir):
         os.mkdir(render_dir)
     shape = (2710, 3384)
     Dataset = get_dataset('kaggle_cars', 'car_pose_6dof')
-
-    for split in ['train', 'val']:
-        dataset = Dataset(opt, split)
-        n = len(dataset)
-        for i, img_id in enumerate(dataset.images[:10]):
-            path = os.path.join(render_dir, img_id)
-            img_anns = dataset.anns[i]
-            create_mask(
-                path, img_anns, dataset.models, dataset.calib, opt, shape=shape)
-            print('[%4d / %d] %s' % (i, n, img_id))
+    dataset = Dataset(opt, 'train')
+    n = len(dataset)
+    for i, img_id in enumerate(dataset.images[:20]):
+        path = os.path.join(render_dir, img_id)
+        img_anns = dataset.anns[i]
+        create_mask(
+            path, img_anns, dataset.models, dataset.calib, opt, shape=shape)
+        print('[%4d / %d] %s' % (i, n, img_id))
 
 
 if __name__ == '__main__':

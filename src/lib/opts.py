@@ -173,6 +173,8 @@ class opts(object):
     self.parser.add_argument('--split_dir', default='', 
                              help='path to dir containing train.txt and val.txt'
                                   'split files')
+    self.parser.add_argument('--gen_masks_dir', default='', 
+                             help='where to save and load generated 3d location masks')
     self.parser.add_argument('--whole_img', action='store_true', default=False,
                              help='do not crop the image')
     self.parser.add_argument('--pad_img_ratio', type=float, default=0.3,
