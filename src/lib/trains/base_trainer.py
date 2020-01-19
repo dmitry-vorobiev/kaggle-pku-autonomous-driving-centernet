@@ -85,6 +85,15 @@ class BaseTrainer(object):
         # 0 1 [2] 3 4 [5] 6 7 [8] 9
         if not (iter_id + 1) % num_accum:
           self.optimizer.step()
+        if opt.use_swa and opt.swa_manual:
+          # epochs count starts from 1
+          global_iter = num_iters * max(0, epoch - 1) + iter_id
+          if opt.swa_lr is not None and global_iter == opt.swa_start:
+            for param_group in self.optimizer.param_groups:
+              param_group['lr'] = opt.swa_lr
+          if global_iter > opt.swa_start:
+            if not (iter_id + 1) % opt.swa_freq:
+              self.optimizer.update_swa()
       batch_time.update(time.time() - end)
       end = time.time()
 
@@ -115,6 +124,21 @@ class BaseTrainer(object):
     ret = {k: v.avg for k, v in avg_loss_stats.items()}
     ret['time'] = bar.elapsed_td.total_seconds() / 60.
     return ret, results
+
+  def bn_update(self, data_loader):
+    opt = self.opt
+    model_with_loss = self.model_with_loss
+    model_with_loss.train()
+
+    for iter_id, batch in enumerate(data_loader):
+      if iter_id >= opt.swa_bn_upd_iters:
+        break
+      for k in batch:
+        if k != 'meta':
+          batch[k] = batch[k].to(device=opt.device, non_blocking=True)
+      with torch.no_grad():  
+        output, loss, loss_stats = model_with_loss(batch)     
+      del output, loss, loss_stats
   
   def debug(self, batch, output, iter_id):
     raise NotImplementedError

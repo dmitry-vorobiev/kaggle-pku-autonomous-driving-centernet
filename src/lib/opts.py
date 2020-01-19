@@ -112,12 +112,16 @@ class opts(object):
                              help='use AdamW with specified weight decay amount')
     self.parser.add_argument('--use_swa', action='store_true',
                              help='apply SWA to base optimizer')
+    self.parser.add_argument('--swa_manual', action='store_true',
+                             help='use SWA in manual mode')
     self.parser.add_argument('--swa_start', type=int, default=1000,
                              help='number of steps before starting to apply SWA')
     self.parser.add_argument('--swa_freq', type=int, default=10,
                              help='number of steps between subsequent updates')
-    self.parser.add_argument('--swa_lr', type=float, 
+    self.parser.add_argument('--swa_lr', type=float, default=None,
                              help='use different lr while applying SWA')
+    self.parser.add_argument('--swa_bn_upd_iters', type=int, default=100,
+                             help='number of steps to upd BN stats')
     self.parser.add_argument('--mixed_precision', action='store_true',
                              help='enables automatic mixed precision ' 
                                   '(NVIDIA Apex amp).')
@@ -299,6 +303,7 @@ class opts(object):
     opt.reg_bbox = not opt.not_reg_bbox
     opt.hm_hp = not opt.not_hm_hp
     opt.reg_hp_offset = (not opt.not_reg_hp_offset) and opt.hm_hp
+    opt.swa_auto = not opt.swa_manual
     opt.img_bottom_half = not opt.whole_img
     opt.norm_xyz = [float(n) for n in opt.xyz_norms.split(',')]
 

@@ -16,6 +16,16 @@ from logger import Logger
 from datasets.dataset_factory import get_dataset
 from trains.train_factory import train_factory
 
+def create_train_loader(dataset, opt):
+  loader = torch.utils.data.DataLoader(
+    dataset, 
+    batch_size=opt.batch_size, 
+    shuffle=True,
+    num_workers=opt.num_workers,
+    pin_memory=True,
+    drop_last=True
+  )
+  return loader
 
 def create_optimizer(model, opt):
   if opt.weight_decay > 0:
@@ -24,10 +34,13 @@ def create_optimizer(model, opt):
   else:
     optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr)
   if opt.use_swa:
-    optimizer = SWA(optimizer, 
-                    swa_start=opt.swa_start, 
-                    swa_freq=opt.swa_freq, 
-                    swa_lr=opt.swa_lr)
+    if opt.swa_auto:
+      optimizer = SWA(optimizer, 
+                      swa_start=opt.swa_start, 
+                      swa_freq=opt.swa_freq, 
+                      swa_lr=opt.swa_lr)
+    else:
+      optimizer = SWA(optimizer)
   return optimizer
 
 
@@ -78,18 +91,17 @@ def main(opt):
     trainer.set_models(val_dataset.models)
 
   if opt.test:
+    if opt.use_swa:
+      optimizer.swap_swa_sgd()
+      train_dataset = Dataset(opt, 'train')
+      train_loader = create_train_loader(train_dataset, opt)
+      trainer.bn_update(train_loader)
     _, preds = trainer.val(0, val_loader)
     val_loader.dataset.run_eval(preds, opt.save_dir)
     return
 
-  train_loader = torch.utils.data.DataLoader(
-      Dataset(opt, 'train'), 
-      batch_size=opt.batch_size, 
-      shuffle=True,
-      num_workers=opt.num_workers,
-      pin_memory=True,
-      drop_last=True
-  )
+  train_dataset = Dataset(opt, 'train')
+  train_loader = create_train_loader(train_dataset, opt)
 
   print('Starting training...')
   best = 1e10
@@ -97,9 +109,6 @@ def main(opt):
     mark = epoch if opt.save_all else 'last'
     log_dict_train, _ = trainer.train(epoch, train_loader)
     apply_swa = opt.use_swa and epoch * len(train_loader) > opt.swa_start
-    if apply_swa: 
-      # swap to averaged weights for save and eval
-      optimizer.swap_swa_sgd()
     logger.write('epoch: {} |'.format(epoch))
     for k, v in log_dict_train.items():
       logger.scalar_summary('train_{}'.format(k), v, epoch)
@@ -127,9 +136,6 @@ def main(opt):
       print('Drop LR to', lr)
       for param_group in optimizer.param_groups:
           param_group['lr'] = lr
-    if apply_swa:
-      # swap back to train
-      optimizer.swap_swa_sgd()
   logger.close()
 
 if __name__ == '__main__':
