@@ -154,6 +154,8 @@ class KaggleCars(data.Dataset):
                 gt = train_df.loc[train_df['ImageId'] == img_id, 'PredictionString'].values[0]
                 gt = parse_annot_str(str(gt))
                 pred = pred_df.loc[i_img, 'PredictionString']
+                if pred is np.nan:
+                    continue
                 pred = parse_pred_str(pred)
                     
                 for pred_car in sorted(pred, key=lambda x: x['score'], reverse=True):
