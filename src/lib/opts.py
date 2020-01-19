@@ -198,7 +198,14 @@ class opts(object):
     self.parser.add_argument('--aug_scale', type=float, default=0.2,
                              help='probability of applying scale augmentation.')
     self.parser.add_argument('--aug_blur', type=float, default=0.2,
-                             help='probability of applying gaussian blur augmentation.')
+                             help='probability of applying blur.')
+    self.parser.add_argument('--blur_limit', type=str, default='5,11',
+                             help='lower and upper limits for blur amount')
+    self.parser.add_argument('--aug_noise', type=float, default=0.2,
+                             help='probability of applying gaussian noise.')
+    self.parser.add_argument('--noise_scale', type=str, default='0.03,0.06',
+                             help='lower and upper limits for noise std.'
+                                  'Both will be multiplied by 255')
     self.parser.add_argument('--aug_brightness_contrast', type=float, default=0.2,
                              help='probability of applying random '
                                   'brightness-contrast tfm')
@@ -206,8 +213,10 @@ class opts(object):
                              help='max brightness change')
     self.parser.add_argument('--contrast_limit', type=float, default=0.08,
                              help='max contrast change')
-    self.parser.add_argument('--aug_gamma', type=float, default=0.2,
-                             help='probability of applying gamma/hue tfms')
+    self.parser.add_argument('--aug_hue', type=float, default=0.2,
+                             help='probability of shifting hue.')
+    self.parser.add_argument('--hue_shift_limit', type=int, default=20,
+                             help='probability of shifting hue.')
     # loss
     self.parser.add_argument('--mse_loss', action='store_true',
                              help='use mse loss or focal loss to train '
@@ -308,6 +317,8 @@ class opts(object):
     opt.swa_auto = not opt.swa_manual
     opt.img_bottom_half = not opt.whole_img
     opt.norm_xyz = [float(n) for n in opt.xyz_norms.split(',')]
+    opt.blur_limit = [int(l) for l in opt.blur_limit.split(',')]
+    opt.noise_scale = [float(l) for l in opt.noise_scale.split(',')]
 
     if opt.head_conv == -1: # init default head_conv
       opt.head_conv = 256 if 'dla' in opt.arch else 64
