@@ -139,6 +139,7 @@ class BaseTrainer(object):
       with torch.no_grad():  
         output, loss, loss_stats = model_with_loss(batch)     
       del output, loss, loss_stats
+    model_with_loss.eval()
   
   def debug(self, batch, output, iter_id):
     raise NotImplementedError

@@ -90,12 +90,17 @@ def main(opt):
     # pass loaded 3D models for debug visualisations
     trainer.set_models(val_dataset.models)
 
+  if opt.use_swa and (opt.test or opt.save_avg_weights):
+    optimizer.swap_swa_sgd()
+    train_dataset = Dataset(opt, 'train')
+    train_loader = create_train_loader(train_dataset, opt)
+    trainer.bn_update(train_loader)
+
+  if opt.save_avg_weights:
+    path = os.path.join(opt.save_dir, 'model_%d_avg.pth' % start_epoch)
+    save_model(path, start_epoch, model)
+
   if opt.test:
-    if opt.use_swa:
-      optimizer.swap_swa_sgd()
-      train_dataset = Dataset(opt, 'train')
-      train_loader = create_train_loader(train_dataset, opt)
-      trainer.bn_update(train_loader)
     _, preds = trainer.val(0, val_loader)
     val_loader.dataset.run_eval(preds, opt.save_dir)
     return

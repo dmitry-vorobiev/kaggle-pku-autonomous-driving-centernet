@@ -112,6 +112,8 @@ class opts(object):
                              help='use AdamW with specified weight decay amount')
     self.parser.add_argument('--use_swa', action='store_true',
                              help='apply SWA to base optimizer')
+    self.parser.add_argument('--save_avg_weights', action='store_true',
+                             help='convert model to averaged weights and save it')
     self.parser.add_argument('--swa_manual', action='store_true',
                              help='use SWA in manual mode')
     self.parser.add_argument('--swa_start', type=int, default=1000,
