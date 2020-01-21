@@ -107,7 +107,7 @@ class CarPose6DoFDetector(BaseDetector):
             pred = debugger.gen_colormap(
                 output['hm'][0].detach().cpu().numpy())
             debugger.add_blend_img(img, pred, 'pred_hm')
-        debugger.add_car_masks(
+        debugger.render_cars(
             img, dets[0], car_model, [meta['c']], [meta['s']], 
             [meta['calib']], self.opt, '3d_pred')
   

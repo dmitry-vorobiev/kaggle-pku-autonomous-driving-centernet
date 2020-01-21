@@ -10,7 +10,7 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-import albumentations as albu
+import albumentations as A
 import cv2
 import random
 
@@ -237,7 +237,7 @@ def color_aug(data_rng, image, eig_val, eig_vec):
     lighting_(data_rng, image, 0.1, eig_val, eig_vec)
 
 
-def pad_img_sides(img, pad_pct):
+def pad_img_sides(img, pad_pct, fill_zeros=False):
     """ Pad image on left and right
         Input:
             img - image of shape (C, H, W)
@@ -247,7 +247,10 @@ def pad_img_sides(img, pad_pct):
     """
     c, h, w = img.shape
     empty_shape = (c, h, int(w * pad_pct / 2))
-    empty = np.ones(empty_shape, dtype=img.dtype) * img.mean(2, keepdims=True)
+    if fill_zeros:
+      empty = np.zeros(empty_shape, dtype=np.float32) 
+    else:
+      empty = np.ones(empty_shape, dtype=np.float32) * img.mean(2, keepdims=True)
     img = np.concatenate([empty, img, empty], axis=2)
     return img
 
@@ -255,20 +258,25 @@ def pad_img_sides(img, pad_pct):
 # Eek_the_Cat
 def car_6dof_pixel_tfms(opt):
   tfms = []
-  if opt.aug_blur > 0:
-    tfms.append(albu.GaussianBlur(p=opt.aug_blur))
   if opt.aug_brightness_contrast > 0:
-    tfms.append(albu.RandomBrightnessContrast(
-      p=opt.aug_brightness_contrast, 
-      brightness_limit=opt.brightness_limit, 
-      contrast_limit=opt.contrast_limit))
-  if opt.aug_gamma > 0:
-    tfm = albu.OneOf([
-      albu.RandomGamma(p=1),
-      albu.HueSaturationValue(p=1),
-    ], p=opt.aug_gamma)
+    tfm = A.RandomBrightnessContrast(
+        brightness_limit=opt.brightness_limit, 
+        contrast_limit=opt.contrast_limit,
+        p=opt.aug_brightness_contrast)
     tfms.append(tfm)
-  tfms = albu.Compose(tfms)
+  if opt.aug_hue > 0:
+    tfm = A.HueSaturationValue(
+      hue_shift_limit=opt.hue_shift_limit, 
+      sat_shift_limit=0, val_shift_limit=0,
+      p=opt.aug_hue)
+    tfms.append(tfm)
+  if opt.aug_blur > 0:
+    tfm = A.GaussianBlur(blur_limit=opt.blur_limit, p=opt.aug_blur)
+    tfms.append(tfm)
+  if opt.aug_noise > 0:
+    tfm = A.IAAAdditiveGaussianNoise(scale=opt.noise_scale, p=opt.aug_noise)
+    tfms.append(tfm)
+  tfms = A.Compose(tfms)
   def _wrapper(image):
     return tfms(image=image)['image']
   return _wrapper

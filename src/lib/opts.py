@@ -59,9 +59,13 @@ class opts(object):
     # car_pose_6dof                         
     self.parser.add_argument('--debug_heatmap', action='store_true', 
                              help='generate heatmaps in debug output')
-    self.parser.add_argument('--vis_car_style', default='wire',
+    self.parser.add_argument('--debug_xyz_mask', action='store_true', 
+                             help='generate 3D location masks in debug output')
+    self.parser.add_argument('--render_cars', action='store_true', 
+                          help='render 3D models of cars')
+    self.parser.add_argument('--render_car_style', default='wire',
                              choices=['mask', 'wire'], 
-                             help='style of visualisation')
+                             help='style of visualisation for 3D render')
     # model
     self.parser.add_argument('--arch', default='dla_34', 
                              help='model architecture. Currently tested'
@@ -97,6 +101,8 @@ class opts(object):
                              help='batch size on the master gpu.')
     self.parser.add_argument('--num_iters', type=int, default=-1,
                              help='default: #samples / batch_size.')
+    self.parser.add_argument('--num_grad_accum', type=int, default=1,
+                             help='number of gradient accumulation steps.')
     self.parser.add_argument('--val_intervals', type=int, default=5,
                              help='number of epochs to run validation.')
     self.parser.add_argument('--trainval', action='store_true',
@@ -106,12 +112,18 @@ class opts(object):
                              help='use AdamW with specified weight decay amount')
     self.parser.add_argument('--use_swa', action='store_true',
                              help='apply SWA to base optimizer')
+    self.parser.add_argument('--save_avg_weights', action='store_true',
+                             help='convert model to averaged weights and save it')
+    self.parser.add_argument('--swa_manual', action='store_true',
+                             help='use SWA in manual mode')
     self.parser.add_argument('--swa_start', type=int, default=1000,
                              help='number of steps before starting to apply SWA')
     self.parser.add_argument('--swa_freq', type=int, default=10,
                              help='number of steps between subsequent updates')
-    self.parser.add_argument('--swa_lr', type=float, 
+    self.parser.add_argument('--swa_lr', type=float, default=None,
                              help='use different lr while applying SWA')
+    self.parser.add_argument('--swa_bn_upd_iters', type=int, default=100,
+                             help='number of steps to upd BN stats')
     self.parser.add_argument('--mixed_precision', action='store_true',
                              help='enables automatic mixed precision ' 
                                   '(NVIDIA Apex amp).')
@@ -170,19 +182,30 @@ class opts(object):
                              help='different validation split for kitti: '
                                   '3dop | subcnn')
     # car_pose_6dof
+    self.parser.add_argument('--xyz_mask', action='store_true',
+                             help='use 3D location masks for training')
+    self.parser.add_argument('--xyz_norms', type=str, default='519.834,689.119,3502.94',
+                             help='values to norm/unnorm metric values')
     self.parser.add_argument('--split_dir', default='', 
                              help='path to dir containing train.txt and val.txt'
                                   'split files')
+    self.parser.add_argument('--gen_masks_dir', default='', 
+                             help='where to save and load generated 3d location masks')
     self.parser.add_argument('--whole_img', action='store_true', default=False,
                              help='do not crop the image')
     self.parser.add_argument('--pad_img_ratio', type=float, default=0.3,
                              help='equaly pad image on left and right ')
-    self.parser.add_argument('--aug_shift', type=float, default=0.2,
-                             help='probability of applying shift augmentation.')
     self.parser.add_argument('--aug_scale', type=float, default=0.2,
                              help='probability of applying scale augmentation.')
     self.parser.add_argument('--aug_blur', type=float, default=0.2,
-                             help='probability of applying gaussian blur augmentation.')
+                             help='probability of applying blur.')
+    self.parser.add_argument('--blur_limit', type=str, default='5,11',
+                             help='lower and upper limits for blur amount')
+    self.parser.add_argument('--aug_noise', type=float, default=0.2,
+                             help='probability of applying gaussian noise.')
+    self.parser.add_argument('--noise_scale', type=str, default='0.03,0.06',
+                             help='lower and upper limits for noise std.'
+                                  'Both will be multiplied by 255')
     self.parser.add_argument('--aug_brightness_contrast', type=float, default=0.2,
                              help='probability of applying random '
                                   'brightness-contrast tfm')
@@ -190,8 +213,10 @@ class opts(object):
                              help='max brightness change')
     self.parser.add_argument('--contrast_limit', type=float, default=0.08,
                              help='max contrast change')
-    self.parser.add_argument('--aug_gamma', type=float, default=0.2,
-                             help='probability of applying gamma/hue tfms')
+    self.parser.add_argument('--aug_hue', type=float, default=0.2,
+                             help='probability of shifting hue.')
+    self.parser.add_argument('--hue_shift_limit', type=int, default=20,
+                             help='probability of shifting hue.')
     # loss
     self.parser.add_argument('--mse_loss', action='store_true',
                              help='use mse loss or focal loss to train '
@@ -218,6 +243,9 @@ class opts(object):
     self.parser.add_argument('--rot_weight', type=float, default=1,
                              help='loss weight for orientation.')
     self.parser.add_argument('--peak_thresh', type=float, default=0.2)
+    # car_pose_6dof
+    self.parser.add_argument('--dlm_weight', type=float, default=1,
+                             help='loss weight for 3D location map')
     
     # task
     # ctdet
@@ -286,7 +314,11 @@ class opts(object):
     opt.reg_bbox = not opt.not_reg_bbox
     opt.hm_hp = not opt.not_hm_hp
     opt.reg_hp_offset = (not opt.not_reg_hp_offset) and opt.hm_hp
+    opt.swa_auto = not opt.swa_manual
     opt.img_bottom_half = not opt.whole_img
+    opt.norm_xyz = [float(n) for n in opt.xyz_norms.split(',')]
+    opt.blur_limit = [int(l) for l in opt.blur_limit.split(',')]
+    opt.noise_scale = [float(l) for l in opt.noise_scale.split(',')]
 
     if opt.head_conv == -1: # init default head_conv
       opt.head_conv = 256 if 'dla' in opt.arch else 64
@@ -362,6 +394,8 @@ class opts(object):
         opt.heads.update({'wh': 2})
       if opt.reg_offset:
         opt.heads.update({'reg': 2})
+      if opt.xyz_mask:
+        opt.heads.update({'dlm': 3})
     elif opt.task == 'ctdet':
       # assert opt.dataset in ['pascal', 'coco']
       opt.heads = {'hm': opt.num_classes,

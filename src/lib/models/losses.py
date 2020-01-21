@@ -184,6 +184,19 @@ class L1Loss(nn.Module):
     loss = F.l1_loss(pred * mask, target * mask, reduction='mean')
     return loss
 
+class DenseLocL1Loss(nn.Module):
+  def __init__(self):
+    super(DenseLocL1Loss, self).__init__()
+
+  def forward(self, output, target):
+    b, _, h, w = target.shape
+    device = target.device
+    mask = torch.zeros(b, 1, h, w, dtype=torch.uint8, device=device)
+    mask[(target != 0).any(1, keepdim=True)] = 1
+    loss = F.l1_loss(output * mask, target * mask, reduction='sum')
+    loss /= (mask > 0).sum()
+    return loss
+
 class BinRotLoss(nn.Module):
   def __init__(self):
     super(BinRotLoss, self).__init__()
