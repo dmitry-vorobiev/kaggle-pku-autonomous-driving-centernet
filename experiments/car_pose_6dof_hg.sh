@@ -3,7 +3,7 @@ cd src
 python main.py car_pose_6dof --exp_id hg --dataset kaggle_cars \
  --load_model ../exp/car_pose_6dof/hg/model_2.pth --resume \
  --arch hourglass --xyz_mask \
- --dlm_weight 5 --rot_weight 10 \
+ --xyz_weight 5 --rot_weight 10 \
  --batch_size 7 --master_batch_size 3 --num_grad_accum 4 \
  --num_epochs 10 --lr 5e-5 --lr_step 12,15 --weight_decay 0.01 \
  --use_swa --swa_start 6000 --swa_freq 50 --swa_manual \

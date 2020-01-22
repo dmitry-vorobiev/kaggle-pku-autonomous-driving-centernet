@@ -13,7 +13,7 @@ from utils.image import get_affine_transform, affine_transform, gaussian_radius,
 
 class CarPose6DoFDataset(data.Dataset):
     def get_3d_loc_masks_dir(self):
-        render_dir = self.opt.gen_masks_dir
+        render_dir = self.opt.xyz_masks_dir
         if not os.path.isdir(render_dir):
             render_dir = os.path.join(
                 self.opt.data_dir, 'pku-autonomous-driving', 'train_3d_masks')

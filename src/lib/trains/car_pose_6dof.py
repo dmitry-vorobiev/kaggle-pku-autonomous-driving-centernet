@@ -21,14 +21,14 @@ class CarPose6DoFLoss(torch.nn.Module):
         super(CarPose6DoFLoss, self).__init__()
         self.crit = torch.nn.MSELoss() if opt.mse_loss else FocalLoss()
         self.crit_reg = L1Loss()
-        self.crit_dlm = DenseLocL1Loss()
+        self.crit_xyz = DenseLocL1Loss()
         self.opt = opt
 
     def forward(self, outputs, batch):
         opt = self.opt
 
         hm_loss, dep_loss, rot_loss = 0, 0, 0
-        wh_loss, off_loss, dlm_loss = 0, 0, 0
+        wh_loss, off_loss, xyz_loss = 0, 0, 0
         for s in range(opt.num_stacks):
             output = outputs[s]
             output['hm'] = _sigmoid(output['hm'])
@@ -54,17 +54,17 @@ class CarPose6DoFLoss(torch.nn.Module):
             if opt.reg_offset and opt.off_weight > 0:
                 off_loss += self.crit_reg(output['reg'], batch['rot_mask'],
                                           batch['ind'], batch['reg']) / opt.num_stacks
-            if opt.xyz_mask and opt.dlm_weight > 0:
-                dlm_loss += self.crit_dlm(output['dlm'], batch['xyz_mask']) / opt.num_stacks
+            if opt.xyz_mask and opt.xyz_weight > 0:
+                xyz_loss += self.crit_xyz(output['xyz'], batch['xyz_mask']) / opt.num_stacks
         loss = (opt.hm_weight * hm_loss + opt.dep_weight * dep_loss +
                 opt.rot_weight * rot_loss + opt.wh_weight * wh_loss +
-                opt.off_weight * off_loss + opt.dlm_weight * dlm_loss)
+                opt.off_weight * off_loss + opt.xyz_weight * xyz_loss)
 
         loss_stats = {'loss': loss, 'hm_loss': hm_loss, 'dep_loss': dep_loss,
                       'rot_loss': rot_loss, 'wh_loss': wh_loss,
                       'off_loss': off_loss}
         if opt.xyz_mask:
-            loss_stats.update({'dlm_loss': dlm_loss})
+            loss_stats.update({'xyz_loss': xyz_loss})
         return loss, loss_stats
 
 
@@ -80,7 +80,7 @@ class CarPose6DoFTrainer(BaseTrainer):
         loss_states = ['loss', 'hm_loss', 'dep_loss', 'rot_loss',
                        'wh_loss', 'off_loss']
         if opt.xyz_mask:
-            loss_states.append('dlm_loss')
+            loss_states.append('xyz_loss')
         loss = CarPose6DoFLoss(opt)
         return loss_states, loss
 

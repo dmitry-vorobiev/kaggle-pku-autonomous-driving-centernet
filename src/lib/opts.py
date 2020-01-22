@@ -59,8 +59,6 @@ class opts(object):
     # car_pose_6dof                         
     self.parser.add_argument('--debug_heatmap', action='store_true', 
                              help='generate heatmaps in debug output')
-    self.parser.add_argument('--debug_xyz_mask', action='store_true', 
-                             help='generate 3D location masks in debug output')
     self.parser.add_argument('--render_cars', action='store_true', 
                           help='render 3D models of cars')
     self.parser.add_argument('--render_car_style', default='wire',
@@ -122,7 +120,7 @@ class opts(object):
                              help='number of steps between subsequent updates')
     self.parser.add_argument('--swa_lr', type=float, default=None,
                              help='use different lr while applying SWA')
-    self.parser.add_argument('--swa_bn_upd_iters', type=int, default=100,
+    self.parser.add_argument('--swa_bn_upd_iters', type=int, default=10,
                              help='number of steps to upd BN stats')
     self.parser.add_argument('--mixed_precision', action='store_true',
                              help='enables automatic mixed precision ' 
@@ -182,21 +180,20 @@ class opts(object):
                              help='different validation split for kitti: '
                                   '3dop | subcnn')
     # car_pose_6dof
-    self.parser.add_argument('--xyz_mask', action='store_true',
-                             help='use 3D location masks for training')
-    self.parser.add_argument('--xyz_norms', type=str, default='519.834,689.119,3502.94',
-                             help='values to norm/unnorm metric values')
     self.parser.add_argument('--split_dir', default='', 
                              help='path to dir containing train.txt and val.txt'
                                   'split files')
-    self.parser.add_argument('--gen_masks_dir', default='', 
-                             help='where to save and load generated 3d location masks')
+    self.parser.add_argument('--xyz_mask', action='store_true',
+                             help='use 3D location masks for training')
+    self.parser.add_argument('--norm_xyz', type=str, default='519.834,689.119,3502.94',
+                             help='values to norm metric distances')
+    self.parser.add_argument('--xyz_masks_dir', default='', 
+                             help='where to save and load generated masks')
     self.parser.add_argument('--whole_img', action='store_true', default=False,
-                             help='do not crop the image')
+                             help='do not crop the image upper half')
     self.parser.add_argument('--pad_img_ratio', type=float, default=0.3,
-                             help='equaly pad image on left and right ')
-    self.parser.add_argument('--aug_scale', type=float, default=0.2,
-                             help='probability of applying scale augmentation.')
+                             help='equaly pad the image on left and right. '
+                                  'Total width increase in %')
     self.parser.add_argument('--aug_blur', type=float, default=0.2,
                              help='probability of applying blur.')
     self.parser.add_argument('--blur_limit', type=str, default='5,11',
@@ -244,7 +241,7 @@ class opts(object):
                              help='loss weight for orientation.')
     self.parser.add_argument('--peak_thresh', type=float, default=0.2)
     # car_pose_6dof
-    self.parser.add_argument('--dlm_weight', type=float, default=1,
+    self.parser.add_argument('--xyz_weight', type=float, default=1,
                              help='loss weight for 3D location map')
     
     # task
@@ -316,7 +313,7 @@ class opts(object):
     opt.reg_hp_offset = (not opt.not_reg_hp_offset) and opt.hm_hp
     opt.swa_auto = not opt.swa_manual
     opt.img_bottom_half = not opt.whole_img
-    opt.norm_xyz = [float(n) for n in opt.xyz_norms.split(',')]
+    opt.norm_xyz = [float(n) for n in opt.norm_xyz.split(',')]
     opt.blur_limit = [int(l) for l in opt.blur_limit.split(',')]
     opt.noise_scale = [float(l) for l in opt.noise_scale.split(',')]
 
@@ -395,7 +392,7 @@ class opts(object):
       if opt.reg_offset:
         opt.heads.update({'reg': 2})
       if opt.xyz_mask:
-        opt.heads.update({'dlm': 3})
+        opt.heads.update({'xyz': 3})
     elif opt.task == 'ctdet':
       # assert opt.dataset in ['pascal', 'coco']
       opt.heads = {'hm': opt.num_classes,

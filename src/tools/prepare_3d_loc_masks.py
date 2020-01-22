@@ -58,7 +58,7 @@ if __name__ == '__main__':
     opt = opts().parse()
     opt.trainval = True
 
-    render_dir = opt.gen_masks_dir
+    render_dir = opt.xyz_masks_dir
     if not os.path.isdir(render_dir):
         render_dir = os.path.join(
             opt.data_dir, 'pku-autonomous-driving', 'train_3d_masks')
