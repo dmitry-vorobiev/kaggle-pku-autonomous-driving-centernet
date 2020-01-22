@@ -1,5 +1,8 @@
 # Peking University/Baidu - Autonomous Driving
 
+This is a fork of [CenterNet repo](https://github.com/xingyizhou/CenterNet) with an additional pipeline and some minor functionality added.
+To learn more about the competition please visit [kaggle.com](https://www.kaggle.com/c/pku-autonomous-driving).
+
 ## Installation
 
 Please refer to [INSTALL.md](readme/INSTALL.md) for installation instructions.
@@ -65,3 +68,14 @@ $ python test.py car_pose_6dof --exp_id car_pose_default --dataset kaggle_cars \
 ## Debug / visualisations
 
 Use *--render_cars* with *--debug 4* to see rendered car models. Just add it these parameters to train/test command lines. Adding *--debug_heatmap* will also visualise heatmaps.
+
+## Citation
+
+~~~
+@inproceedings{zhou2019objects,
+  title={Objects as Points},
+  author={Zhou, Xingyi and Wang, Dequan and Kr{\"a}henb{\"u}hl, Philipp},
+  booktitle={arXiv preprint arXiv:1904.07850},
+  year={2019}
+}
+~~~
