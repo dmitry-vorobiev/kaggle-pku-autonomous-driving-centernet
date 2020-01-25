@@ -82,17 +82,18 @@ def load_model(model, model_path, optimizer=None, amp=None, resume=False,
     if 'amp' in checkpoint:
       amp.load_state_dict(checkpoint['amp'])
   if optimizer is not None:
-    return model, optimizer, amp, start_epoch
+    meta = {'it': checkpoint['it'], 'epoch': start_epoch}
+    return model, optimizer, amp, meta
   else:
     return model
 
-def save_model(path, epoch, model, optimizer=None, amp=None):
+def save_model(path, meta, model, optimizer=None, amp=None):
+  assert 'epoch' in meta and 'it' in meta
   if isinstance(model, torch.nn.DataParallel):
     state_dict = model.module.state_dict()
   else:
     state_dict = model.state_dict()
-  data = {'epoch': epoch,
-          'state_dict': state_dict}
+  data = {**meta, 'state_dict': state_dict}
   if not (optimizer is None):
     data['optimizer'] = optimizer.state_dict()
   if not (amp is None):
