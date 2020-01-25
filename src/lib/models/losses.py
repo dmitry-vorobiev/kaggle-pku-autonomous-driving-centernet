@@ -191,7 +191,7 @@ class DenseLocL1Loss(nn.Module):
   def forward(self, output, target):
     b, _, h, w = target.shape
     device = target.device
-    mask = torch.zeros(b, 1, h, w, dtype=torch.uint8, device=device)
+    mask = torch.zeros(b, 1, h, w, dtype=torch.float32, device=device)
     mask[(target != 0).any(1, keepdim=True)] = 1
     loss = F.l1_loss(output * mask, target * mask, reduction='sum')
     loss /= (mask > 0).sum()
