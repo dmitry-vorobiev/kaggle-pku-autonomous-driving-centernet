@@ -1,6 +1,12 @@
-# Peking University/Baidu - Autonomous Driving
+# Peking University/Baidu - Autonomous Driving - CenterNet
 
-This is a fork of [CenterNet repo](https://github.com/xingyizhou/CenterNet) with an additional pipeline and some minor functionality added.
+This is a fork of [CenterNet repo](https://github.com/xingyizhou/CenterNet) aimed at using this architecture for aforementioned Kaggle's competition. Major changes:
+* added new dataset `kaggle_cars`;
+* added new pipeline `car_pose_6dof`;
+* prerendering and using 3D location masks (the idea comes from 2018 paper *3D Pose Estimation for Fine-Grained Object Categories*);
+* mixed precision training (Nvidia's Apex amp) and gradient accumulation for higher batch size;
+* options to use SWA and weight decay for better generalization;
+
 To learn more about the competition please visit [kaggle.com](https://www.kaggle.com/c/pku-autonomous-driving).
 
 ## Installation
@@ -70,7 +76,7 @@ $ python test.py car_pose_6dof --exp_id car_pose_default --dataset kaggle_cars \
 
 ## Debug / visualisations
 
-Use `--debug 4 --render_cars` to see rendered car models. Just add it these parameters to train/test command lines. Adding `--debug_heatmap` will also visualise heatmaps.
+Use `--debug 4 --render_cars` to see rendered car models. Just add these parameters to train/test command lines. Adding `--debug_heatmap` will also visualise heatmaps.
 
 ## Citation
 
@@ -80,5 +86,14 @@ Use `--debug 4 --render_cars` to see rendered car models. Just add it these para
   author={Zhou, Xingyi and Wang, Dequan and Kr{\"a}henb{\"u}hl, Philipp},
   booktitle={arXiv preprint arXiv:1904.07850},
   year={2019}
+}
+
+@inproceedings{wang20183d,
+  title={3D Pose Estimation for Fine-Grained Object Categories},
+  author={Wang, Yaming and Tan, Xiao and Yang, Yi and Liu, Xiao and Ding, Errui and Zhou, Feng and Davis, Larry S},
+  booktitle={European Conference on Computer Vision Workshop},
+  pages={619--632},
+  year={2018},
+  organization={Springer}
 }
 ~~~
